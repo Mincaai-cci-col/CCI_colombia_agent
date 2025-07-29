@@ -1,7 +1,7 @@
 """
-Agent LangChain CCI - Version refactorisée et modulaire avec détection de langue
-Tools et prompts externalisés pour une meilleure maintenance
-Support bilingue français/espagnol
+LangChain CCI Agent - Refactored and modular version with language detection
+Tools and prompts externalized for better maintenance
+Bilingual support French/Spanish
 """
 
 import os
@@ -18,44 +18,44 @@ from app.agents.language import detect_language_from_input
 from app.agents.prompts_utils import load_prompt, get_prompt_for_language
 
 # =============================================================================
-# UTILITAIRES
+# UTILITIES
 # =============================================================================
 
 # =============================================================================
-# CLASSE AGENT REFACTORISÉE BILINGUE
+# REFACTORED BILINGUAL AGENT CLASS
 # =============================================================================
 
 class CCILangChainAgent:
     """
-    Agent LangChain CCI refactorisé avec mémoire conversationnelle et support bilingue.
+    Refactored CCI LangChain Agent with conversational memory and bilingual support.
     
-    Architecture modulaire :
-    - Tools : app/agents/tools.py
-    - Prompts : app/agents/prompts/ (français + espagnol)
-    - Language : app/utils/language.py
-    - Agent : app/agents/langchain_agent.py (ce fichier)
+    Modular architecture:
+    - Tools: app/agents/tools.py
+    - Prompts: app/agents/prompts/ (French + Spanish)
+    - Language: app/utils/language.py
+    - Agent: app/agents/langchain_agent.py (this file)
     """
     
     def __init__(self, prompt_name: str = "diagnostic_prompt"):
         """
-        Initialise l'agent avec configuration modulaire.
+        Initialize the agent with modular configuration.
         
         Args:
-            prompt_name: Nom du prompt à charger (sans extension)
+            prompt_name: Name of the prompt to load (without extension)
         """
-        # Configuration LLM
+        # LLM configuration
         self.llm = ChatOpenAI(
             model="gpt-4o",
             temperature=0.3,
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
-        # État de la conversation
-        self.detected_language: Literal["fr", "es"] = "fr"  # Français par défaut
-        self.language_detected = False  # Flag pour savoir si la langue a été détectée
+        # Conversation state
+        self.detected_language: Literal["fr", "es"] = "fr"  # French by default
+        self.language_detected = False  # Flag to know if language has been detected
         self.first_interaction = True
         
-        # Charger le prompt système initial
+        # Load initial system prompt
         try:
             system_prompt = load_prompt(prompt_name)
         except Exception as e:
@@ -63,7 +63,7 @@ class CCILangChainAgent:
             print("🔄 Utilisation du prompt par défaut...")
             system_prompt = "Tu es un agent conversationnel expert de la CCI France-Colombie."
         
-        # Mémoire conversationnelle avec résumé automatique
+        # Conversational memory with automatic summarization
         self.memory = ConversationSummaryBufferMemory(
             llm=self.llm,
             max_token_limit=2000,
@@ -73,14 +73,14 @@ class CCILangChainAgent:
             output_key="output"
         )
         
-        # État du diagnostic
+        # Diagnostic state
         self.diagnostic_answers: List[Dict[str, Any]] = []
         self.current_question = 1
         
-        # Charger les tools depuis le module séparé
+        # Load tools from separate module
         self.tools = get_agent_tools(self)
         
-        # Créer le prompt template avec mémoire
+        # Create prompt template with memory
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             MessagesPlaceholder("chat_history"),
@@ -88,18 +88,18 @@ class CCILangChainAgent:
             MessagesPlaceholder("agent_scratchpad")
         ])
         
-        # Créer l'agent LangChain
+        # Create LangChain agent
         self._rebuild_agent()
     
     def _rebuild_agent(self):
-        """Reconstruit l'agent avec la configuration actuelle"""
+        """Rebuild agent with current configuration"""
         self.agent = create_openai_tools_agent(
             llm=self.llm,
             tools=self.tools,
             prompt=self.prompt
         )
         
-        # Executor avec mémoire et configuration
+        # Executor with memory and configuration
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
@@ -112,13 +112,13 @@ class CCILangChainAgent:
     
     async def _detect_and_adapt_language(self, user_input: str) -> None:
         """
-        Détecte la langue et adapte l'agent si nécessaire
+        Detect language and adapt agent if necessary
         
         Args:
-            user_input: Premier message de l'utilisateur
+            user_input: First user message
         """
         if self.language_detected:
-            return  # Langue déjà détectée
+            return  # Language already detected
         
         print(f"🔍 Détection de langue en cours...")
         detected_lang = await detect_language_from_input(user_input)
@@ -127,15 +127,15 @@ class CCILangChainAgent:
             print(f"🌍 Langue détectée : {detected_lang}")
             self.detected_language = detected_lang
             
-            # Synchroniser la langue avec les tools
+            # Synchronize language with tools
             set_tools_language(detected_lang)
             
-            # Adapter le prompt selon la langue
+            # Adapt prompt according to language
             prompt_name = get_prompt_for_language(detected_lang)
             try:
                 new_system_prompt = load_prompt(prompt_name)
                 
-                # Recréer le prompt template
+                # Recreate prompt template
                 self.prompt = ChatPromptTemplate.from_messages([
                     ("system", new_system_prompt),
                     MessagesPlaceholder("chat_history"),
@@ -143,7 +143,7 @@ class CCILangChainAgent:
                     MessagesPlaceholder("agent_scratchpad")
                 ])
                 
-                # Reconstruire l'agent
+                # Rebuild agent
                 self._rebuild_agent()
                 
                 print(f"✅ Agent et tools adaptés pour la langue : {detected_lang}")
@@ -155,39 +155,39 @@ class CCILangChainAgent:
     
     async def chat(self, user_input: str, user_id: str = "demo_user") -> str:
         """
-        Conversation avec l'agent bilingue.
+        Conversation with bilingual agent.
         
         Args:
-            user_input: Message de l'utilisateur
-            user_id: ID utilisateur pour les logs
+            user_input: User message
+            user_id: User ID for logs
             
         Returns:
-            str: Réponse de l'agent
+            str: Agent response
         """
         try:
-            # Détection de langue au premier message
+            # Language detection on first message
             if self.first_interaction:
                 await self._detect_and_adapt_language(user_input)
                 self.first_interaction = False
             
-            # Log user input - commenté pour l'instant
+            # Log user input - commented for now
             # asyncio.create_task(
             #     log_interaction_async(user_id=user_id, role="user", content=user_input)
             # )
             
-            # Appel à l'agent avec mémoire automatique
+            # Call agent with automatic memory
             result = await self.agent_executor.ainvoke({
                 "input": user_input
             })
             
             agent_response = result["output"]
             
-            # Log agent response - commenté pour l'instant
+            # Log agent response - commented for now
             # asyncio.create_task(
             #     log_interaction_async(user_id=user_id, role="agent", content=agent_response)
             # )
             
-            # Traiter les tool calls pour mettre à jour l'état
+            # Process tool calls to update state
             self._process_tool_calls(result)
             
             return agent_response
@@ -200,10 +200,10 @@ class CCILangChainAgent:
     
     def _process_tool_calls(self, result: Dict[str, Any]) -> None:
         """
-        Traite les tool calls pour mettre à jour l'état interne.
+        Process tool calls to update internal state.
         
         Args:
-            result: Résultat de l'exécution de l'agent
+            result: Agent execution result
         """
         if "intermediate_steps" not in result:
             return
@@ -211,7 +211,7 @@ class CCILangChainAgent:
         for step in result["intermediate_steps"]:
             action, observation = step
             
-            # Collecte de réponse diagnostic
+            # Diagnostic answer collection
             if action.tool == "collect_diagnostic_answer":
                 tool_input = action.tool_input
                 self.diagnostic_answers.append({
@@ -224,10 +224,10 @@ class CCILangChainAgent:
     
     def get_status(self) -> Dict[str, Any]:
         """
-        Obtient le statut complet de l'agent et du diagnostic.
+        Get complete status of agent and diagnostic.
         
         Returns:
-            dict: Informations sur l'état actuel
+            dict: Current state information
         """
         memory_history = self.memory.chat_memory.messages if self.memory.chat_memory else []
         
@@ -245,12 +245,12 @@ class CCILangChainAgent:
     
     def serialize_state(self) -> Dict[str, Any]:
         """
-        Sérialise l'état complet de l'agent pour la persistance (WhatsApp, Redis, DB)
+        Serialize complete agent state for persistence (WhatsApp, Redis, DB)
         
         Returns:
-            dict: État sérialisé de l'agent
+            dict: Serialized agent state
         """
-        # Sérialiser les messages de mémoire
+        # Serialize memory messages
         memory_messages = []
         if self.memory.chat_memory and self.memory.chat_memory.messages:
             for msg in self.memory.chat_memory.messages:
@@ -260,7 +260,7 @@ class CCILangChainAgent:
                     "role": getattr(msg, 'role', None)
                 })
         
-        # Obtenir le résumé de la mémoire
+        # Get memory summary
         memory_summary = ""
         try:
             memory_summary = getattr(self.memory, 'moving_summary_buffer', '')
@@ -275,31 +275,31 @@ class CCILangChainAgent:
             "first_interaction": self.first_interaction,
             "memory_messages": memory_messages,
             "memory_summary": memory_summary,
-            "version": "1.0"  # Pour gestion des migrations futures
+            "version": "1.0"  # For future migration management
         }
     
     def load_state(self, state: Dict[str, Any]) -> None:
         """
-        Charge l'état de l'agent depuis des données sérialisées (WhatsApp, Redis, DB)
+        Load agent state from serialized data (WhatsApp, Redis, DB)
         
         Args:
-            state: État sérialisé de l'agent
+            state: Serialized agent state
         """
         if not state:
             return
         
-        # Charger l'état basique
+        # Load basic state
         self.current_question = state.get("current_question", 1)
         self.diagnostic_answers = state.get("diagnostic_answers", [])
         self.detected_language = state.get("detected_language", "fr")
         self.language_detected = state.get("language_detected", False)
         self.first_interaction = state.get("first_interaction", True)
         
-        # Recharger la langue dans les tools si détectée
+        # Reload language in tools if detected
         if self.language_detected:
             set_tools_language(self.detected_language)
             
-            # Adapter le prompt selon la langue
+            # Adapt prompt according to language
             prompt_name = get_prompt_for_language(self.detected_language)
             try:
                 system_prompt = load_prompt(prompt_name)
@@ -313,22 +313,22 @@ class CCILangChainAgent:
             except Exception as e:
                 print(f"⚠️ Erreur rechargement prompt : {e}")
         
-        # Recharger la mémoire de façon plus robuste
+        # Reload memory more robustly
         try:
-            # D'abord, essayer de recharger le résumé
+            # First, try to reload summary
             memory_summary = state.get("memory_summary", "")
             if memory_summary:
                 self.memory.moving_summary_buffer = memory_summary
             
-            # Ensuite, recharger les messages de l'historique
+            # Then, reload message history
             memory_messages = state.get("memory_messages", [])
             if memory_messages:
                 from langchain_core.messages import HumanMessage, AIMessage
                 
-                # Vider l'historique actuel
+                # Clear current history
                 self.memory.chat_memory.clear()
                 
-                # Recharger les messages
+                # Reload messages
                 for msg_data in memory_messages:
                     if msg_data.get("type") == "HumanMessage":
                         self.memory.chat_memory.add_message(HumanMessage(content=msg_data["content"]))
@@ -337,7 +337,7 @@ class CCILangChainAgent:
                         
         except Exception as e:
             print(f"⚠️ Erreur rechargement mémoire : {e}")
-            # En cas d'erreur, au moins garder le résumé
+            # In case of error, at least keep the summary
             try:
                 memory_summary = state.get("memory_summary", "")
                 if memory_summary:
@@ -348,29 +348,29 @@ class CCILangChainAgent:
     @classmethod
     def from_state(cls, state: Dict[str, Any], prompt_name: str = "diagnostic_prompt") -> 'CCILangChainAgent':
         """
-        Crée une instance d'agent depuis un état sérialisé (pour WhatsApp)
+        Create agent instance from serialized state (for WhatsApp)
         
         Args:
-            state: État sérialisé
-            prompt_name: Nom du prompt à utiliser
+            state: Serialized state
+            prompt_name: Prompt name to use
             
         Returns:
-            CCILangChainAgent: Instance configurée avec l'état chargé
+            CCILangChainAgent: Instance configured with loaded state
         """
-        # Créer une nouvelle instance
+        # Create new instance
         agent = cls(prompt_name=prompt_name)
         
-        # Charger l'état
+        # Load state
         agent.load_state(state)
         
         return agent
     
     def get_memory_content(self) -> str:
         """
-        Obtient le contenu de la mémoire pour debug.
+        Get memory content for debug.
         
         Returns:
-            str: Contenu de la mémoire
+            str: Memory content
         """
         try:
             return self.memory.buffer
@@ -378,7 +378,7 @@ class CCILangChainAgent:
             return "Mémoire vide"
     
     def reset(self) -> None:
-        """Reset l'agent pour une nouvelle conversation"""
+        """Reset agent for new conversation"""
         self.memory.clear()
         self.diagnostic_answers = []
         self.current_question = 1
@@ -386,29 +386,29 @@ class CCILangChainAgent:
         self.language_detected = False
         self.first_interaction = True
         
-        # Reset la langue des tools au français
+        # Reset tools language to French
         set_tools_language("fr")
     
     def set_language(self, lang: Literal["fr", "es"]) -> bool:
         """
-        Force une langue spécifique (utile pour les tests)
+        Force specific language (useful for tests)
         
         Args:
-            lang: Langue à utiliser
+            lang: Language to use
             
         Returns:
-            bool: True si succès
+            bool: True if successful
         """
         try:
             self.detected_language = lang
             
-            # Synchroniser la langue avec les tools
+            # Synchronize language with tools
             set_tools_language(lang)
             
             prompt_name = get_prompt_for_language(lang)
             system_prompt = load_prompt(prompt_name)
             
-            # Recréer le prompt template
+            # Recreate prompt template
             self.prompt = ChatPromptTemplate.from_messages([
                 ("system", system_prompt),
                 MessagesPlaceholder("chat_history"),
@@ -416,7 +416,7 @@ class CCILangChainAgent:
                 MessagesPlaceholder("agent_scratchpad")
             ])
             
-            # Reconstruire l'agent
+            # Rebuild agent
             self._rebuild_agent()
             self.language_detected = True
             self.first_interaction = False
@@ -427,17 +427,17 @@ class CCILangChainAgent:
             return False
 
 # =============================================================================
-# FONCTION FACTORY
+# FACTORY FUNCTION
 # =============================================================================
 
 def create_cci_agent(prompt_name: str = "diagnostic_prompt") -> CCILangChainAgent:
     """
-    Factory pour créer une instance de l'agent CCI bilingue.
+    Factory to create CCI bilingual agent instance.
     
     Args:
-        prompt_name: Nom du prompt à utiliser
+        prompt_name: Prompt name to use
         
     Returns:
-        CCILangChainAgent: Instance configurée de l'agent
+        CCILangChainAgent: Configured agent instance
     """
     return CCILangChainAgent(prompt_name=prompt_name) 

@@ -1,9 +1,9 @@
 """
-Interface Streamlit pour tester l'agent CCI WhatsApp
-Interface simple avec chat et gestion automatique des user_id
+Streamlit interface for testing CCI WhatsApp agent
+Simple interface with chat and automatic user_id management
 """
 
-# IMPORTANT: Charger le .env en premier
+# IMPORTANT: Load .env first
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -13,159 +13,153 @@ import uuid
 from datetime import datetime
 from app.agents.whatsapp_handler import whatsapp_chat, reset_user_conversation, get_user_status
 
-# Configuration de la page
-st.set_page_config(
-    page_title="Test Agent CCI",
-    page_icon="🤖",
-    layout="centered"
-)
-
-# Initialisation de la session
-if "user_id" not in st.session_state:
-    st.session_state.user_id = f"test_{uuid.uuid4().hex[:8]}"
-    st.session_state.conversation_started = False
+def check_environment():
+    """Check if required environment variables are set"""
+    import os
     
-    # Message de bienvenue bilingue à ajouter à l'historique
-    welcome_msg = """👋 Bonjour ! Je suis YY, votre **assistant virtuel de la CCI France-Colombie**.
-
-Mon rôle est de **mieux comprendre vos besoins** en tant qu'adhérent(e) et de vous **accompagner si vous avez la moindre question concernant nos offres, services, événements.**
-
-📝 Ce petit échange comprend 7 **questions simples**, et ne vous prendra que **quelques minutes**.
-
-**Dites-moi quand vous êtes prêt(e), je suis à votre écoute**
-
----
-
-👋 ¡Hola! Soy YY, tu **asistente virtual de la CCI Francia-Colombia**.
-
-Mi objetivo es **comprender mejor tus necesidades** como miembro y **acompañarte si tienes cualquier duda sobre nuestras ofertas, servicios o eventos**.
-
-📝 Este breve intercambio contiene **7 preguntas sencillas** y solo te tomará **unos minutos**.
-
-**Dime cuándo estés listo(a), estoy aquí para ayudarte** 😊"""
+    required_vars = ["OPENAI_API_KEY", "PINECONE_API_KEY", "PINECONE_INDEX"]
+    missing_vars = []
     
-    st.session_state.messages = [{
-        "role": "assistant", 
-        "content": welcome_msg,
-        "timestamp": datetime.now().strftime("%H:%M:%S")
-    }]
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        st.error(f"❌ Variables d'environnement manquantes : {', '.join(missing_vars)}")
+        st.error("Veuillez vérifier votre fichier .env")
+        st.stop()
+    
+    st.success("✅ Variables d'environnement chargées")
 
 def reset_conversation():
-    """Reset la conversation (nouveau user_id)"""
-    # Générer un nouveau user_id
-    old_user_id = st.session_state.user_id
-    st.session_state.user_id = f"test_{uuid.uuid4().hex[:8]}"
+    """Reset conversation and generate new user ID"""
+    # Generate new user ID
+    st.session_state.user_id = f"streamlit_user_{uuid.uuid4().hex[:8]}"
     
-    # Reset l'état de l'agent pour l'ancien user
-    asyncio.run(reset_user_conversation(old_user_id))
-    
-    # Message de bienvenue bilingue
+    # Welcome message to display
     welcome_msg = """👋 Bonjour ! Je suis YY, votre **assistant virtuel de la CCI France-Colombie**.
 
-Mon rôle est de **mieux comprendre vos besoins** en tant qu'adhérent(e) et de vous **accompagner si vous avez la moindre question concernant nos offres, services, événements.**
+Mon rôle est de mieux comprendre vos besoins en tant qu'adhérent(e) et de vous accompagner si vous avez la moindre question concernant nos offres, services, événements.
 
-📝 Ce petit échange comprend 7 **questions simples**, et ne vous prendra que **quelques minutes**.
+📋 Ce petit échange comprend 8 questions simples, et ne vous prendra que quelques minutes.
 
-**Dites-moi quand vous êtes prêt(e), je suis à votre écoute**
+**Dites-moi quand vous êtes prêt(e), je suis à votre écoute** 😊
 
 ---
 
 👋 ¡Hola! Soy YY, tu **asistente virtual de la CCI Francia-Colombia**.
 
-Mi objetivo es **comprender mejor tus necesidades** como miembro y **acompañarte si tienes cualquier duda sobre nuestras ofertas, servicios o eventos**.
+Mi objetivo es comprender mejor tus necesidades como miembro y acompañarte si tienes cualquier duda sobre nuestras ofertas, servicios o eventos.
 
-📝 Este breve intercambio contiene **7 preguntas sencillas** y solo te tomará **unos minutos**.
+📋 Este breve intercambio contiene 8 preguntas sencillas y solo te tomará unos minutos.
 
 **Dime cuándo estés listo(a), estoy aquí para ayudarte** 😊"""
     
-    # Reset l'interface avec le message de bienvenue
+    # Reset conversation state
     st.session_state.messages = [{
-        "role": "assistant", 
+        "role": "assistant",
         "content": welcome_msg,
         "timestamp": datetime.now().strftime("%H:%M:%S")
     }]
-    st.session_state.conversation_started = False
     
-    st.success("✅ Nouvelle conversation démarrée !")
-    st.rerun()
-
-async def send_message(user_input: str) -> str:
-    """Envoie un message à l'agent"""
-    try:
-        response = await whatsapp_chat(st.session_state.user_id, user_input)
-        return response
-    except Exception as e:
-        return f"❌ Erreur: {str(e)}"
+    # Reset user conversation in backend
+    asyncio.run(reset_user_conversation(st.session_state.user_id))
 
 def main():
-    # Vérification des variables d'environnement
-    import os
-    if not os.getenv("OPENAI_API_KEY"):
-        st.error("❌ Variable OPENAI_API_KEY manquante ! Vérifiez votre fichier .env")
-        st.stop()
-    if not os.getenv("PINECONE_API_KEY"):
-        st.error("❌ Variable PINECONE_API_KEY manquante ! Vérifiez votre fichier .env") 
-        st.stop()
+    """Main Streamlit application"""
+    st.set_page_config(
+        page_title="Test Agent CCI",
+        page_icon="🤖",
+        layout="wide"
+    )
     
-    # Header
-    st.title("🤖 Test Agent CCI Colombia")
-
-
+    st.title("🤖 Test Agent CCI WhatsApp")
+    st.markdown("*Interface de test pour l'agent conversationnel CCI*")
     
-    # Sidebar avec infos et contrôles
+    # Check environment variables
+    check_environment()
+    
+    # Initialize session state
+    if "user_id" not in st.session_state:
+        reset_conversation()
+    
+    if "messages" not in st.session_state:
+        reset_conversation()
+    
+    # Sidebar with controls
     with st.sidebar:
-        st.markdown("### 🔧 Contrôles")
+        st.header("🎛️ Contrôles")
         
-        # Bouton nouvelle conversation
+        st.markdown(f"**User ID:** `{st.session_state.user_id[:16]}...`")
+        
         if st.button("🔄 Nouvelle conversation", type="primary"):
             reset_conversation()
+            st.rerun()
+        
+        # Display user status
+        try:
+            status = asyncio.run(get_user_status(st.session_state.user_id))
+            st.markdown("### 📊 Statut")
+            if status["exists"]:
+                st.markdown(f"- **Question:** {status['current_question']}/8")
+                st.markdown(f"- **Réponses:** {status['answers_collected']}")
+                st.markdown(f"- **Langue:** {status['language']}")
+                if status["diagnostic_complete"]:
+                    st.success("✅ Diagnostic terminé")
+            else:
+                st.info("Nouvelle conversation")
+        except Exception as e:
+            st.error(f"Erreur statut: {e}")
     
-    # Zone de chat
-    chat_container = st.container()
+    # Main chat interface
+    st.markdown("### 💬 Conversation")
     
-    # Affichage des messages
-    with chat_container:
-        # Afficher l'historique des messages (y compris le message de bienvenue)
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-                if message["role"] == "assistant" and "timestamp" in message:
-                    st.caption(f" {message['timestamp']}")
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if "timestamp" in message:
+                st.caption(f"⏰ {message['timestamp']}")
     
-    # Input utilisateur
-    user_input = st.chat_input("Tapez votre message ici...")
-    
-    if user_input:
-        # Ajouter le message utilisateur
+    # Chat input
+    if prompt := st.chat_input("Tapez votre message..."):
+        # Add user message to chat
+        timestamp = datetime.now().strftime("%H:%M:%S")
         st.session_state.messages.append({
             "role": "user", 
-            "content": user_input,
-            "timestamp": datetime.now().strftime("%H:%M:%S")
-        })
-        st.session_state.conversation_started = True
-        
-        # Afficher le message utilisateur
-        with st.chat_message("user"):
-            st.write(user_input)
-        
-        # Obtenir la réponse de l'agent
-        with st.chat_message("assistant"):
-            with st.spinner("L'agent réfléchit..."):
-                response = asyncio.run(send_message(user_input))
-            
-            st.write(response)
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            st.caption(f"⏱️ {timestamp}")
-        
-        # Ajouter la réponse de l'agent
-        st.session_state.messages.append({
-            "role": "assistant", 
-            "content": response,
+            "content": prompt,
             "timestamp": timestamp
         })
         
-        # Auto-scroll vers le bas
-        st.rerun()
+        # Display user message
+        with st.chat_message("user"):
+            st.markdown(prompt)
+            st.caption(f"⏰ {timestamp}")
+        
+        # Get agent response
+        with st.chat_message("assistant"):
+            with st.spinner("L'agent réfléchit..."):
+                try:
+                    response = asyncio.run(whatsapp_chat(st.session_state.user_id, prompt))
+                    st.markdown(response)
+                    
+                    # Add to session state
+                    response_timestamp = datetime.now().strftime("%H:%M:%S")
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": response,
+                        "timestamp": response_timestamp
+                    })
+                    st.caption(f"⏰ {response_timestamp}")
+                    
+                except Exception as e:
+                    error_msg = f"❌ Erreur: {str(e)}"
+                    st.error(error_msg)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": error_msg,
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    })
 
 if __name__ == "__main__":
     main() 

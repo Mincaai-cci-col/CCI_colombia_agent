@@ -1,175 +1,109 @@
 """
-Handler WhatsApp pour l'agent CCI
-Fonction stateless qui gère la persistance et l'état utilisateur
+WhatsApp Handler for CCI Agent
+Stateless wrapper for agent state management and WhatsApp deployment
+Manages user state persistence for multi-turn conversations
 """
 
-import json
 import asyncio
 from typing import Dict, Any, Optional
 from app.agents.langchain_agent import CCILangChainAgent
 
-# Stockage temporaire en mémoire (à remplacer par Redis/DB en production)
+# In-memory storage for user states (replace with Redis/DB in production)
+# TODO: Replace with Redis or database for production deployment
 _user_states: Dict[str, Dict[str, Any]] = {}
 
 async def load_user_state(user_id: str) -> Optional[Dict[str, Any]]:
     """
-    Charge l'état d'un utilisateur depuis le stockage
+    Load user's conversation state.
     
     Args:
-        user_id: ID utilisateur WhatsApp
+        user_id: Unique user identifier
         
     Returns:
-        dict: État utilisateur ou None si nouveau
+        Dict containing user's agent state or None if not found
     """
-    # TODO: Remplacer par Redis/DB
-    # Exemple Redis:
-    # redis_client = get_redis_client()
-    # state_json = await redis_client.get(f"user_state:{user_id}")
-    # return json.loads(state_json) if state_json else None
-    
     return _user_states.get(user_id)
 
 async def save_user_state(user_id: str, state: Dict[str, Any]) -> None:
     """
-    Sauvegarde l'état d'un utilisateur
+    Save user's conversation state.
     
     Args:
-        user_id: ID utilisateur WhatsApp
-        state: État à sauvegarder
+        user_id: Unique user identifier
+        state: Agent state to save
     """
-    # TODO: Remplacer par Redis/DB
-    # Exemple Redis:
-    # redis_client = get_redis_client()
-    # await redis_client.set(f"user_state:{user_id}", json.dumps(state), ex=86400)  # 24h TTL
-    
     _user_states[user_id] = state
+
+async def reset_user_conversation(user_id: str) -> None:
+    """
+    Reset user's conversation (new conversation).
+    
+    Args:
+        user_id: Unique user identifier
+    """
+    if user_id in _user_states:
+        del _user_states[user_id]
+
+async def get_user_status(user_id: str) -> Dict[str, Any]:
+    """
+    Get user's conversation status.
+    
+    Args:
+        user_id: Unique user identifier
+        
+    Returns:
+        Dict containing user status information
+    """
+    state = await load_user_state(user_id)
+    if not state:
+        return {
+            "exists": False,
+            "current_question": 1,
+            "answers_collected": 0,
+            "language": "fr"
+        }
+    
+    return {
+        "exists": True,
+        "current_question": state.get("current_question", 1),
+        "answers_collected": len(state.get("diagnostic_answers", [])),
+        "language": state.get("detected_language", "fr"),
+        "diagnostic_complete": state.get("current_question", 1) > 8
+    }
 
 async def whatsapp_chat(user_id: str, user_input: str) -> str:
     """
-    Fonction principale pour WhatsApp - STATELESS
+    Main function for WhatsApp conversations.
+    Stateless: loads state, processes message, saves state.
     
     Args:
-        user_id: ID utilisateur WhatsApp (numéro de téléphone)
-        user_input: Message de l'utilisateur
+        user_id: Unique user identifier  
+        user_input: User's message
         
     Returns:
-        str: Réponse de l'agent CCI
+        Agent's response
     """
     try:
-        # 1. Charger l'état utilisateur
+        # Load existing user state
         user_state = await load_user_state(user_id)
         
-        # 2. Créer ou reconfigurer l'agent
         if user_state:
-            # Utilisateur existant : charger son état
+            # Restore agent from saved state
             agent = CCILangChainAgent.from_state(user_state)
         else:
-            # Nouvel utilisateur : créer un agent vierge
+            # Create new agent for new user
             agent = CCILangChainAgent()
         
-        # 3. Traiter le message
+        # Process user message
         response = await agent.chat(user_input, user_id)
         
-        # 4. Sauvegarder le nouvel état
+        # Save updated state
         new_state = agent.serialize_state()
         await save_user_state(user_id, new_state)
         
         return response
         
     except Exception as e:
-        # Log l'erreur (remplacer par un vrai logger en production)
-        print(f"❌ Erreur WhatsApp pour user {user_id}: {e}")
-        
-        # Réponse d'erreur selon la langue probable
-        if user_state and user_state.get("detected_language") == "es":
-            return "Disculpe, encontré un problema técnico. ¿Puede intentar de nuevo?"
-        else:
-            return "Désolé, j'ai rencontré un problème technique. Pouvez-vous réessayer ?"
+        error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvez-vous réessayer ? (Erreur: {str(e)})"
+        return error_msg
 
-async def reset_user_conversation(user_id: str) -> bool:
-    """
-    Reset la conversation d'un utilisateur (utile pour les tests ou support)
-    
-    Args:
-        user_id: ID utilisateur WhatsApp
-        
-    Returns:
-        bool: True si succès
-    """
-    try:
-        # Supprimer l'état utilisateur
-        if user_id in _user_states:
-            del _user_states[user_id]
-            
-        # TODO: En production avec Redis/DB:
-        # redis_client = get_redis_client()
-        # await redis_client.delete(f"user_state:{user_id}")
-        
-        return True
-    except Exception as e:
-        print(f"❌ Erreur reset user {user_id}: {e}")
-        return False
-
-async def get_user_status(user_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Obtient le statut d'un utilisateur (utile pour le support/debug)
-    
-    Args:
-        user_id: ID utilisateur WhatsApp
-        
-    Returns:
-        dict: Statut utilisateur ou None si pas trouvé
-    """
-    try:
-        user_state = await load_user_state(user_id)
-        if not user_state:
-            return None
-            
-        # Créer un agent temporaire pour obtenir le statut complet
-        agent = CCILangChainAgent.from_state(user_state)
-        return agent.get_status()
-        
-    except Exception as e:
-        print(f"❌ Erreur status user {user_id}: {e}")
-        return None
-
-# Fonction utilitaire pour les webhooks WhatsApp
-def extract_whatsapp_data(webhook_data: Dict[str, Any]) -> tuple[str, str]:
-    """
-    Extrait user_id et message depuis les données webhook WhatsApp
-    
-    Args:
-        webhook_data: Données du webhook WhatsApp
-        
-    Returns:
-        tuple: (user_id, user_message)
-    """
-    # Exemple structure WhatsApp Business API
-    # À adapter selon votre provider (Twilio, WhatsApp Cloud API, etc.)
-    try:
-        # Structure générique
-        user_id = webhook_data.get("from", "")
-        message = webhook_data.get("text", {}).get("body", "")
-        return user_id, message
-    except Exception:
-        return "", ""
-
-# Exemple d'utilisation
-async def main_test():
-    """Test de la fonction WhatsApp"""
-    user_id = "+33123456789"
-    
-    # Première interaction
-    response1 = await whatsapp_chat(user_id, "je suis prêt")
-    print(f"Agent: {response1}")
-    
-    # Deuxième interaction
-    response2 = await whatsapp_chat(user_id, "oui j'ai accédé à l'espace membre")
-    print(f"Agent: {response2}")
-    
-    # Voir le statut
-    status = await get_user_status(user_id)
-    print(f"Status: {status}")
-
-if __name__ == "__main__":
-    asyncio.run(main_test()) 

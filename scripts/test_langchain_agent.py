@@ -1,6 +1,6 @@
 """
-Test de l'agent LangChain CCI avec MÉMOIRE et SUPPORT BILINGUE
-Montre comment l'agent détecte automatiquement la langue et s'adapte
+Test for CCI LangChain Agent with MEMORY and BILINGUAL SUPPORT
+Shows how the agent automatically detects language and adapts
 """
 
 import asyncio
@@ -8,124 +8,184 @@ import sys
 import os
 from dotenv import load_dotenv
 
-# Charger les variables d'environnement
+# Load environment variables
 load_dotenv()
 
-# Ajouter le répertoire parent au path pour les imports
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.agents.langchain_agent import create_cci_agent
-from app.agents.language import get_welcome_message_static
+from app.agents.langchain_agent import CCILangChainAgent
+from app.agents.language import detect_language_from_input
 
-async def test_langchain_agent():
-    """Test interactif de l'agent LangChain CCI avec mémoire et support bilingue"""
+def print_divider(title=""):
+    """Print a visual divider"""
+    print("=" * 70)
+    if title:
+        print(f" {title} ".center(70, "="))
+        print("=" * 70)
+
+async def test_bilingual_agent():
+    """Interactive test of the bilingual agent"""
     
-    print("🧠🌍 Test de l'Agent LangChain CCI avec MÉMOIRE et SUPPORT BILINGUE")
-    print("💡 L'agent détecte automatiquement la langue et s'adapte !")
-    print("Tapez 'quit' pour sortir, 'memory' pour voir la mémoire, 'status' pour l'état")
-    print("🇫🇷 Essayez en français : 'je suis prêt', 'oui', 'd'accord'")
-    print("🇪🇸 Essayez en espagnol : 'estoy listo', 'sí', 'perfecto'")
-    print("=" * 80)
+    print_divider("🤖 CCI LANGCHAIN AGENT TEST")
+    print("💡 This agent has MEMORY and supports French/Spanish")
+    print("🔍 Language detection: Automatic on first message")
+    print("🎯 Main mission: Complete diagnostic questionnaire")
+    print("🛠️  Available tools: RAG search, diagnostic collection")
+    print("\nCommands:")
+    print("- 'status' : View agent status")
+    print("- 'memory' : View conversation memory") 
+    print("- 'reset'  : Reset conversation")
+    print("- 'quit'   : Exit")
+    print_divider()
     
-    # Créer l'agent avec mémoire et support bilingue
-    agent = create_cci_agent()
+    # Create agent
+    agent = CCILangChainAgent()
     
-    # Message de bienvenue bilingue
-    welcome_message = get_welcome_message_static()
-    print(f"\nAgent : {welcome_message}")
+    print("🤖 Agent: Bonjour ! Je suis YY, votre assistant virtuel de la CCI France-Colombie.")
+    print("Mon rôle est de mieux comprendre vos besoins en tant qu'adhérent(e).")
+    print("📋 Ce petit échange comprend 8 questions simples, et ne vous prendra que quelques minutes.")
+    print("Dites-moi quand vous êtes prêt(e), je suis à votre écoute ! 😊")
     
     conversation_count = 0
     
-    # Boucle de conversation
     while True:
         try:
-            # Input utilisateur
-            print(f"\nVous : ", end="")
+            print(f"\n💬 Vous : ", end="")
             user_input = input().strip()
             
             if user_input.lower() == 'quit':
-                print("👋 À bientôt ! / ¡Hasta luego!")
+                print("👋 Au revoir !")
                 break
             
-            # Commandes spéciales
-            if user_input.lower() == 'memory':
-                print("\n🧠 === CONTENU DE LA MÉMOIRE ===")
-                memory_content = agent.get_memory_content()
+            elif user_input.lower() == 'status':
                 status = agent.get_status()
-                
-                print(f"📊 Messages en mémoire : {status['memory_messages']}")
-                print(f"🌍 Langue détectée : {status['detected_language']} ({'Français' if status['detected_language'] == 'fr' else 'Español'})")
-                print(f"📝 Réponses collectées : {status['answers_collected']}")
-                print(f"❓ Question actuelle : {status['current_question']}/8")
-                
-                if status['diagnostic_answers']:
-                    print(f"\n📋 Réponses du diagnostic :")
-                    for i, answer in enumerate(status['diagnostic_answers'], 1):
-                        lang_flag = "🇫🇷" if answer.get('language') == 'fr' else "🇪🇸"
-                        print(f"  {i}. {lang_flag} {answer['answer']}")
-                
-                print(f"\n💭 Résumé de la mémoire : {status['memory_summary']}")
-                print("\n" + "="*60)
+                print("\n📊 AGENT STATUS:")
+                print(f"- Current question: {status['current_question']}/8")
+                print(f"- Answers collected: {status['answers_collected']}")
+                print(f"- Detected language: {status['detected_language']}")
+                print(f"- Language detected: {status['language_detected']}")
+                print(f"- Memory messages: {status['memory_messages']}")
+                print(f"- Diagnostic complete: {status['is_diagnostic_complete']}")
                 continue
             
-            if user_input.lower() == 'status':
-                status = agent.get_status()
-                print(f"\n📊 === STATUT DE L'AGENT ===")
-                print(f"🌍 Langue détectée : {status['detected_language']} ({'✅ Détectée' if status['language_detected'] else '❌ Non détectée'})")
-                print(f"❓ Question : {status['current_question']}/8")
-                print(f"📝 Réponses : {status['answers_collected']}")
-                print(f"🎯 Diagnostic complet : {'✅ Oui' if status['is_diagnostic_complete'] else '❌ Non'}")
-                print("="*40)
+            elif user_input.lower() == 'memory':
+                memory_content = agent.get_memory_content()
+                print(f"\n🧠 MEMORY CONTENT:\n{memory_content}")
+                continue
+            
+            elif user_input.lower() == 'reset':
+                agent.reset()
+                print("🔄 Agent reset! New conversation started.")
+                conversation_count = 0
                 continue
             
             if not user_input:
+                print("⚠️ Please enter a message!")
                 continue
             
+            # Process message with agent
+            print("🤔 Processing...")
+            response = await agent.chat(user_input, user_id="test_user")
+            
             conversation_count += 1
+            print(f"\n🤖 Agent: {response}")
             
-            # Appel à l'agent LangChain avec détection automatique de langue
-            if conversation_count == 1:
-                print(f"\n🔍 Première interaction : détection de langue automatique...")
-            else:
-                print(f"\n🤖 Agent en cours de réflexion (mémoire + langue)...")
-            
-            response = await agent.chat(user_input)
-            
-            # Afficher la réponse
-            print(f"\nAgent : {response}")
-            
-            # Debug status compact avec langue
+            # Show basic progress
             status = agent.get_status()
-            lang_emoji = "🇫🇷" if status['detected_language'] == 'fr' else "🇪🇸"
-            print(f"[Debug] {lang_emoji} Langue: {status['detected_language']} | 🧠 Mémoire: {status['memory_messages']} msg | 📝 Réponses: {status['answers_collected']}/8 | ❓ Question: {status['current_question']}/8")
+            if status['answers_collected'] > 0:
+                print(f"\n📈 Progress: {status['answers_collected']}/8 answers collected")
             
-            # Vérifier si diagnostic terminé
-            if status['current_question'] > 8 or "diagnostic" in response.lower() and ("terminé" in response.lower() or "terminado" in response.lower()):
-                print(f"\n🎉 Diagnostic terminé avec succès !")
-                print(f"📝 Toutes les réponses collectées : {len(status['diagnostic_answers'])}")
-                
-                # Afficher toutes les réponses avec langue
-                if status['diagnostic_answers']:
-                    print(f"\n📋 === RÉSUMÉ DU DIAGNOSTIC BILINGUE ===")
-                    for i, answer in enumerate(status['diagnostic_answers'], 1):
-                        lang_flag = "🇫🇷" if answer.get('language') == 'fr' else "🇪🇸"
-                        print(f"Question {i}: {lang_flag} {answer['answer']}")
-                    print("="*50)
-                
-                # Proposer de continuer
-                lang = status['detected_language']
-                if lang == "es":
-                    print(f"\n¿Quiere hacer más preguntas? (escriba 'memory' para ver la memoria)")
-                else:
-                    print(f"\nVoulez-vous poser d'autres questions ? (tapez 'memory' pour voir la mémoire)")
-                
         except KeyboardInterrupt:
-            print("\n👋 À bientôt ! / ¡Hasta luego!")
+            print("\n\n👋 Session interrupted. Goodbye!")
             break
         except Exception as e:
-            print(f"\n❌ Erreur : {e}")
-            print("Essayons de continuer...")
+            print(f"\n❌ Error: {e}")
+            print("🔄 You can continue the conversation or type 'quit' to exit.")
+
+async def test_language_detection():
+    """Test language detection separately"""
+    print_divider("🌍 LANGUAGE DETECTION TEST")
+    
+    test_phrases = [
+        "Bonjour, je suis prêt pour commencer",
+        "Hola, estoy listo para empezar", 
+        "Je voudrais des informations sur la CCI",
+        "Quiero información sobre la CCI",
+        "Comment ça marche ?",
+        "¿Cómo funciona?"
+    ]
+    
+    for phrase in test_phrases:
+        try:
+            detected = await detect_language_from_input(phrase)
+            print(f"'{phrase}' → {detected}")
+        except Exception as e:
+            print(f"Error detecting language for '{phrase}': {e}")
+
+async def test_agent_memory():
+    """Test agent memory persistence"""
+    print_divider("🧠 MEMORY PERSISTENCE TEST")
+    
+    agent = CCILangChainAgent()
+    
+    # Simulate conversation sequence
+    messages = [
+        "je suis prêt",
+        "oui j'ai accédé à l'espace membre", 
+        "j'ai participé à un événement networking",
+        "status"  # Special command
+    ]
+    
+    for i, msg in enumerate(messages):
+        if msg == "status":
+            status = agent.get_status()
+            print(f"\n📊 After {i} messages:")
+            print(f"- Answers collected: {status['answers_collected']}")
+            print(f"- Current question: {status['current_question']}")
+        else:
+            print(f"\n👤 User: {msg}")
+            response = await agent.chat(msg, f"test_user_{i}")
+            print(f"🤖 Agent: {response[:100]}...")
+
+def main():
+    """Main test function"""
+    print("🚀 Starting CCI LangChain Agent Tests")
+    
+    # Check environment variables
+    required_vars = ["OPENAI_API_KEY", "PINECONE_API_KEY", "PINECONE_INDEX"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing_vars:
+        print(f"❌ Missing environment variables: {', '.join(missing_vars)}")
+        print("Please check your .env file")
+        return
+    
+    print("✅ Environment variables loaded")
+    
+    # Menu
+    while True:
+        print("\n" + "="*50)
+        print("Choose a test:")
+        print("1. Interactive Agent Test")
+        print("2. Language Detection Test") 
+        print("3. Memory Persistence Test")
+        print("4. Exit")
+        print("="*50)
+        
+        choice = input("Your choice (1-4): ").strip()
+        
+        if choice == "1":
+            asyncio.run(test_bilingual_agent())
+        elif choice == "2":
+            asyncio.run(test_language_detection())
+        elif choice == "3":
+            asyncio.run(test_agent_memory())
+        elif choice == "4":
+            print("👋 Goodbye!")
+            break
+        else:
+            print("❌ Invalid choice. Please enter 1, 2, 3, or 4.")
 
 if __name__ == "__main__":
-    print("🔧 Initialisation de l'agent bilingue avec mémoire LangChain...")
-    asyncio.run(test_langchain_agent()) 
+    main() 

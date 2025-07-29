@@ -1,69 +1,74 @@
+"""
+Language detection utilities for CCI Agent
+Automatic French/Spanish detection using OpenAI
+"""
+
 import os
-from openai import AsyncOpenAI
 from typing import Literal
-
-LANGUAGE_DETECTION_PROMPT = """Tu es un expert en détection de langue. 
-
-L'utilisateur répond à ce message d'accueil :
-"👋 Bonjour ! Je suis YY, votre assistant virtuel de la CCI France-Colombie. Mon rôle est de mieux comprendre vos besoins en tant qu'adhérent(e) et de vous accompagner si vous avez la moindre question concernant nos offres, services, événements. 📝 Ce petit échange comprend 8 questions simples, et ne vous prendra que quelques minutes. Dites-moi quand vous êtes prêt(e), je suis à votre écoute 🎯"
-
-Analyse la réponse de l'utilisateur et détermine s'il répond en français ou en espagnol.
-
-Réponds UNIQUEMENT par "fr" ou "es". Rien d'autre.
-
-Exemples :
-- "oui" → fr
-- "sí" → es  
-- "je suis prêt" → fr
-- "estoy listo" → es
-- "ok" → fr (par défaut si ambiguë)
-- "d'accord" → fr
-- "perfecto" → es
-- "allons-y" → fr
-- "vamos" → es"""
+from openai import AsyncOpenAI
 
 async def detect_language_from_input(user_input: str) -> Literal["fr", "es"]:
     """
-    Détecte la langue d'un input utilisateur en utilisant OpenAI GPT-4.
-    Plus robuste qu'une détection par mots-clés.
+    Detect language from user input using OpenAI.
+    
+    Args:
+        user_input: Text to analyze
+        
+    Returns:
+        "fr" for French, "es" for Spanish
     """
     try:
-        # Création directe du client avec la clé du .env
+        # Create client directly with .env key
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": LANGUAGE_DETECTION_PROMPT},
-                {"role": "user", "content": f"Réponse de l'utilisateur : {user_input}"}
+                {
+                    "role": "system", 
+                    "content": "Détecte la langue du texte : réponds seulement 'fr' pour français ou 'es' pour espagnol."
+                },
+                {"role": "user", "content": user_input}
             ],
-            temperature=0,
-            max_tokens=5  # On attend juste "fr" ou "es"
+            max_tokens=5  # We only expect "fr" or "es"
         )
         
-        detected_lang = response.choices[0].message.content.strip().lower()
+        detected = response.choices[0].message.content.strip().lower()
         
-        # Validation et fallback
-        if detected_lang in ["fr", "es"]:
-            return detected_lang
+        # Validation and fallback
+        if detected == "es":
+            return "es"
         else:
-            return "fr"  # Fallback par défaut
+            return "fr"  # Default fallback
             
     except Exception as e:
         print(f"Erreur détection langue : {e}")
-        # Fallback simple en cas d'erreur OpenAI
-        return "fr" if any(word in user_input.lower() for word in ["oui", "prêt", "d'accord"]) else "fr"
-
+        # Simple fallback in case of OpenAI error
+        if any(word in user_input.lower() for word in ["hola", "estoy", "soy", "quiero", "necesito", "gracias"]):
+            return "es"
+        return "fr"
 
 def get_welcome_message_static() -> str:
     """
-    Retourne le message d'accueil statique (pour référence).
-    Ce message sera affiché côté client avant le premier input.
+    Get static bilingual welcome message.
+    
+    Returns:
+        Bilingual welcome message
     """
-    return """👋 Bonjour ! Je suis YY, votre **assistant virtuel de la CCI France-Colombie**.
+    return """👋 Bonjour ! Je suis YY, votre assistant virtuel de la CCI France-Colombie.
 
-Mon rôle est de **mieux comprendre vos besoins** en tant qu'adhérent(e) et de vous **accompagner si vous avez la moindre question concernant nos offres, services, événements.**
+Mon rôle est de mieux comprendre vos besoins en tant qu'adhérent(e) et de vous accompagner si vous avez la moindre question concernant nos offres, services, événements.
 
-📝 Ce petit échange comprend 8 **questions simples**, et ne vous prendra que **quelques minutes**.
+📋 Ce petit échange comprend 8 questions simples, et ne vous prendra que quelques minutes.
 
-**Dites-moi quand vous êtes prêt(e), je suis à votre écoute** 🎯"""
+Dites-moi quand vous êtes prêt(e), je suis à votre écoute ! 😊
+
+---
+
+👋 ¡Hola! Soy YY, tu asistente virtual de la CCI Francia-Colombia.
+
+Mi objetivo es comprender mejor tus necesidades como miembro y acompañarte si tienes cualquier duda sobre nuestras ofertas, servicios o eventos.
+
+📋 Este breve intercambio contiene 8 preguntas sencillas y solo te tomará unos minutos.
+
+¡Dime cuándo estés listo(a), estoy aquí para ayudarte! 😊"""
