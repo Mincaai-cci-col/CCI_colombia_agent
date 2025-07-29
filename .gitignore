@@ -1,0 +1,306 @@
+# ===================================
+# VARIABLES D'ENVIRONNEMENT ET SECRETS
+# ===================================
+.env
+.env.local
+.env.*.local
+*.env
+config.json
+secrets.json
+
+# ===================================
+# PYTHON
+# ===================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+test_env/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ===================================
+# LOGS ET DONNÉES
+# ===================================
+*.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+# ===================================
+# STREAMLIT
+# ===================================
+.streamlit/
+
+# ===================================
+# LANGCHAIN / AI
+# ===================================
+# Embeddings et modèles locaux
+embeddings/
+models/
+*.pkl
+*.pickle
+*.joblib
+
+# Vectorstores
+vectorstore/
+chroma/
+faiss/
+*.index
+
+# Cache LangChain
+.langchain/
+
+# ===================================
+# PINECONE / OPENAI
+# ===================================
+# Clés API (au cas où)
+openai_key.txt
+pinecone_key.txt
+api_keys.txt
+
+# ===================================
+# MACOS
+# ===================================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# ===================================
+# WINDOWS
+# ===================================
+# Windows thumbnail cache files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+
+# Dump file
+*.stackdump
+
+# Folder config file
+[Dd]esktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# ===================================
+# LINUX
+# ===================================
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
+
+# ===================================
+# IDE ET ÉDITEURS
+# ===================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===================================
+# AUTRES FICHIERS TEMPORAIRES
+# ===================================
+# Backup files
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Lock files
+*.lock
+
+# ===================================
+# DOSSIERS DE DÉVELOPPEMENT
+# ===================================
+# Dossiers de test
+test_data/
+temp/
+tmp/
+scratch/
+
+# Anciens fichiers (si tu veux garder old/ en local mais pas dans git)
+# old/
+
+# ===================================
+# NGROK
+# ===================================
+ngrok.exe
+ngrok
+*.ngrok.io
+
+# ===================================
+# DONNÉES SENSIBLES
+# ===================================
+# Fichiers de données utilisateur
+user_data/
+conversations/
+chat_history/
+diagnostic_data/
+
+# Exports de données
+*.csv
+*.xlsx
+data_export/ 
