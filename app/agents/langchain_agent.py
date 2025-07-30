@@ -73,8 +73,7 @@ class CCILangChainAgent:
             output_key="output"
         )
         
-        # Diagnostic state
-        self.diagnostic_answers: List[Dict[str, Any]] = []
+        # Diagnostic state - simplified
         self.current_question = 1
         
         # Load tools from separate module
@@ -206,21 +205,19 @@ class CCILangChainAgent:
             result: Agent execution result
         """
         if "intermediate_steps" not in result:
+            print(f"⚠️ No intermediate_steps in result. Current question: {self.current_question}")
             return
             
+        print(f"🔍 Processing {len(result['intermediate_steps'])} tool calls. Current question: {self.current_question}")
+        
         for step in result["intermediate_steps"]:
             action, observation = step
+            print(f"🔧 Tool used: {action.tool}")
             
-            # Diagnostic answer collection
-            if action.tool == "collect_diagnostic_answer":
-                tool_input = action.tool_input
-                self.diagnostic_answers.append({
-                    "question": self.current_question,
-                    "answer": tool_input.get("answer", ""),
-                    "question_number": tool_input.get("question_number", self.current_question),
-                    "language": self.detected_language
-                })
-                self.current_question = min(self.current_question + 1, 8)
+            # Simple question counter
+            if action.tool == "question_asked":
+                self.current_question = min(self.current_question + 1, 9)  # Max 8 questions
+                print(f"📊 Question asked! Now at question {self.current_question}/8")
     
     def get_status(self) -> Dict[str, Any]:
         """
@@ -231,15 +228,15 @@ class CCILangChainAgent:
         """
         memory_history = self.memory.chat_memory.messages if self.memory.chat_memory else []
         
+        questions_asked = max(0, self.current_question - 1)  # Since we start at 1
+        
         return {
             "current_question": self.current_question,
-            "answers_collected": len(self.diagnostic_answers),
-            "diagnostic_answers": self.diagnostic_answers,
+            "questions_asked": questions_asked,
             "detected_language": self.detected_language,
             "language_detected": self.language_detected,
             "memory_messages": len(memory_history),
-            "memory_summary": getattr(self.memory, 'moving_summary_buffer', 'Pas de résumé'),
-            "is_diagnostic_complete": self.current_question > 8,
+            "is_diagnostic_complete": questions_asked >= 8,
             "first_interaction": self.first_interaction
         }
     
@@ -269,13 +266,12 @@ class CCILangChainAgent:
         
         return {
             "current_question": self.current_question,
-            "diagnostic_answers": self.diagnostic_answers,
             "detected_language": self.detected_language,
             "language_detected": self.language_detected,
             "first_interaction": self.first_interaction,
             "memory_messages": memory_messages,
             "memory_summary": memory_summary,
-            "version": "1.0"  # For future migration management
+            "version": "2.0"  # Updated version for simplified state
         }
     
     def load_state(self, state: Dict[str, Any]) -> None:
@@ -290,7 +286,6 @@ class CCILangChainAgent:
         
         # Load basic state
         self.current_question = state.get("current_question", 1)
-        self.diagnostic_answers = state.get("diagnostic_answers", [])
         self.detected_language = state.get("detected_language", "fr")
         self.language_detected = state.get("language_detected", False)
         self.first_interaction = state.get("first_interaction", True)
@@ -380,7 +375,6 @@ class CCILangChainAgent:
     def reset(self) -> None:
         """Reset agent for new conversation"""
         self.memory.clear()
-        self.diagnostic_answers = []
         self.current_question = 1
         self.detected_language = "fr"
         self.language_detected = False

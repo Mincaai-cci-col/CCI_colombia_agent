@@ -55,100 +55,49 @@ async def rag_search_tool(query: str) -> str:
     """
     try:
         current_lang = get_current_language()
+        print(f"🔍 RAG Search Query: '{query}' (lang: {current_lang})")
+        
         response = await query_rag(query, current_lang)
+        
+        # Log the RAG result
+        print(f"📚 RAG Result from Knowledge Base:")
+        print(f"   Query: {query}")
+        print(f"   Response: {response[:200]}{'...' if len(response) > 200 else ''}")
+        print("   " + "="*50)
+        
         return response
     except Exception as e:
         error_msg = f"Erreur lors de la recherche : {str(e)}"
         if get_current_language() == "es":
             error_msg = f"Error en la búsqueda: {str(e)}"
+        print(f"❌ RAG Error: {error_msg}")
         return error_msg
 
 # =============================================================================
-# DIAGNOSTIC COLLECTION TOOL
+# QUESTION COUNTER TOOL - SIMPLE
 # =============================================================================
 
 @tool
-def collect_diagnostic_answer(answer: str, question_number: int) -> str:
+def question_asked() -> str:
     """
-    Collecte et sauvegarde une réponse au questionnaire d'accompagnement.
+    Marque qu'une question du questionnaire a été posée.
     
-    Utilise cette fonction SEULEMENT quand l'utilisateur répond à une des 8 questions du questionnaire.
-    Ne l'utilise PAS pour les questions générales sur la CCI.
+    Utilise cette fonction juste après avoir posé une question du questionnaire
+    (pas pour les questions générales sur la CCI).
     
-    Args:
-        answer: Réponse complète de l'utilisateur à la question
-        question_number: Numéro de la question (1 à 8)
-        
     Returns:
-        Confirmation de la collecte
+        Confirmation que la question a été comptée
     """
     try:
-        # The agent will handle the actual storage via _process_tool_calls
-        success_msg = f"✅ Réponse collectée pour la question {question_number}: '{answer}'"
+        success_msg = "✅ Question comptée"
         if get_current_language() == "es":
-            success_msg = f"✅ Respuesta recopilada para la pregunta {question_number}: '{answer}'"
+            success_msg = "✅ Pregunta contada"
         return success_msg
     except Exception as e:
-        error_msg = f"Erreur collecte : {str(e)}"
+        error_msg = f"Erreur : {str(e)}"
         if get_current_language() == "es":
-            error_msg = f"Error en recopilación: {str(e)}"
+            error_msg = f"Error: {str(e)}"
         return error_msg
-
-# =============================================================================
-# DIAGNOSTIC PROGRESS TOOL
-# =============================================================================
-
-def create_progress_tool(agent_ref: Optional[Any] = None):
-    """
-    Create diagnostic progress tool with agent reference.
-    
-    Args:
-        agent_ref: Reference to the agent instance
-        
-    Returns:
-        LangChain tool function
-    """
-    @tool
-    def get_diagnostic_progress() -> str:
-        """
-        Vérifie l'état d'avancement du questionnaire d'accompagnement.
-        
-        Utilise cette fonction pour savoir :
-        - À quelle question on en est (1 à 8)
-        - Combien de réponses ont été collectées
-        - Un résumé des dernières réponses
-        
-        Returns:
-            État détaillé du questionnaire
-        """
-        try:
-            if agent_ref is None:
-                return "Agent non disponible"
-            
-            status = agent_ref.get_status()
-            
-            if get_current_language() == "es":
-                progress_info = f"""ESTADO DEL CUESTIONARIO:
-- Pregunta actual: {status['current_question']}/8
-- Respuestas recopiladas: {status['answers_collected']}
-- Idioma detectado: {status['detected_language']}
-- Últimas respuestas: {', '.join([ans['answer'][:50] + '...' if len(ans['answer']) > 50 else ans['answer'] for ans in status['diagnostic_answers'][-2:]]) if status['diagnostic_answers'] else 'Ninguna aún'}"""
-            else:
-                progress_info = f"""ÉTAT DU DIAGNOSTIC :
-- Question actuelle : {status['current_question']}/8
-- Réponses collectées : {status['answers_collected']}
-- Langue détectée : {status['detected_language']}
-- Dernières réponses : {', '.join([ans['answer'][:50] + '...' if len(ans['answer']) > 50 else ans['answer'] for ans in status['diagnostic_answers'][-2:]]) if status['diagnostic_answers'] else 'Aucune encore'}"""
-            
-            return progress_info
-            
-        except Exception as e:
-            error_msg = f"Erreur état diagnostic : {str(e)}"
-            if get_current_language() == "es":
-                error_msg = f"Error estado cuestionario: {str(e)}"
-            return error_msg
-    
-    return get_diagnostic_progress
 
 # =============================================================================
 # TOOLS FACTORY
@@ -166,10 +115,7 @@ def get_agent_tools(agent_ref: Optional[Any] = None):
     """
     tools = [
         rag_search_tool,
-        collect_diagnostic_answer
+        question_asked
     ]
-    
-    # Add dynamic progress tool with agent reference
-    tools.append(create_progress_tool(agent_ref))
     
     return tools 

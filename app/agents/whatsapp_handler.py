@@ -66,7 +66,7 @@ async def get_user_status(user_id: str) -> Dict[str, Any]:
     return {
         "exists": True,
         "current_question": state.get("current_question", 1),
-        "answers_collected": len(state.get("diagnostic_answers", [])),
+        "answers_collected": state.get("questions_asked", 0),  # Use questions_asked from state
         "language": state.get("detected_language", "fr"),
         "diagnostic_complete": state.get("current_question", 1) > 8
     }
