@@ -98,8 +98,6 @@ def main():
             status = asyncio.run(get_user_status(st.session_state.user_id))
             st.markdown("### 📊 Statut")
             if status["exists"]:
-                st.markdown(f"- **Question:** {status['current_question']}/8")
-                st.markdown(f"- **Réponses:** {status['answers_collected']}")
                 st.markdown(f"- **Langue:** {status['language']}")
                 if status["diagnostic_complete"]:
                     st.success("✅ Diagnostic terminé")
@@ -109,7 +107,6 @@ def main():
             st.error(f"Erreur statut: {e}")
     
     # Main chat interface
-    st.markdown("### Conversation")
     
     # Display chat messages
     for message in st.session_state.messages:

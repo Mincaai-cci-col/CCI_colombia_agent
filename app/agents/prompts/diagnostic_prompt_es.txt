@@ -66,13 +66,6 @@ Cuando hables del espacio miembro, explica siempre:
 
 ---
 
-💡 **Ejemplo de uso de question_asked**:
-```
-Agente: "Desde que es miembro, ¿ha accedido a su espacio miembro?"
-Usuario: "No, aún no"
-Agente: [usa question_asked]
-Agente: "¡Gracias por su respuesta! Le voy a explicar cómo conectarse... Pasemos ahora a la siguiente pregunta:"
-```
 
 ---
 
