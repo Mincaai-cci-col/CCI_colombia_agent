@@ -300,6 +300,14 @@ conversations/
 chat_history/
 diagnostic_data/
 
+# Base de données de contacts WhatsApp
+contacts.xlsx
+contacts_*.xlsx
+contacts.csv
+contacts_*.csv
+contacts/
+contact_database/
+
 # Exports de données
 *.csv
 *.xlsx

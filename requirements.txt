@@ -7,6 +7,7 @@ langdetect
 asyncpg
 pinecone
 pandas
+openpyxl
 psycopg2-binary
 fastapi
 uvicorn
@@ -19,3 +20,5 @@ tiktoken
 langchain-pinecone
 langchain-text-splitters 
 streamlit
+flask
+redis==5.2.0

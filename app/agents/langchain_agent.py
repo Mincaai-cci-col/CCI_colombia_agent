@@ -8,22 +8,20 @@ import os
 import asyncio
 from typing import List, Dict, Any, Literal
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.memory import ConversationSummaryBufferMemory
 
-from app.agents.tools import get_agent_tools, set_tools_language
-from app.agents.language import detect_language_from_input
-from app.agents.prompts_utils import load_prompt, get_prompt_for_language
+from app.agents.tools.tools import get_agent_tools, set_tools_language
+from app.agents.language.language import detect_language_from_input
+from app.agents.language.language_manager import set_agent_language
+from app.agents.prompts.prompts_utils import load_prompt, get_prompt_for_language
 
-# =============================================================================
-# UTILITIES
-# =============================================================================
-
-# =============================================================================
-# REFACTORED BILINGUAL AGENT CLASS
-# =============================================================================
 
 class CCILangChainAgent:
     """
@@ -36,7 +34,7 @@ class CCILangChainAgent:
     - Agent: app/agents/langchain_agent.py (this file)
     """
     
-    def __init__(self, prompt_name: str = "diagnostic_prompt"):
+    def __init__(self, prompt_name: str = "prompt_fr"):
         """
         Initialize the agent with modular configuration.
         
@@ -55,13 +53,18 @@ class CCILangChainAgent:
         self.language_detected = False  # Flag to know if language has been detected
         self.first_interaction = True
         
+        # Client context for dynamic prompt enrichment
+        self.client_context: Dict[str, Any] = {}
+        self.has_client_context = False
+        
         # Load initial system prompt
+        self.base_prompt_name = prompt_name
         try:
-            system_prompt = load_prompt(prompt_name)
+            self.base_system_prompt = load_prompt(prompt_name)
         except Exception as e:
             print(f"⚠️ Erreur chargement prompt: {e}")
             print("🔄 Utilisation du prompt par défaut...")
-            system_prompt = "Tu es un agent conversationnel expert de la CCI France-Colombie."
+            self.base_system_prompt = "Tu es un agent conversationnel expert de la CCI France-Colombie."
         
         # Conversational memory with automatic summarization
         self.memory = ConversationSummaryBufferMemory(
@@ -79,16 +82,58 @@ class CCILangChainAgent:
         # Load tools from separate module
         self.tools = get_agent_tools(self)
         
-        # Create prompt template with memory
-        self.prompt = ChatPromptTemplate.from_messages([
+        # Create prompt template with memory (will be built dynamically)
+        self.prompt = self._build_dynamic_prompt()
+        
+        # Create LangChain agent
+        self._rebuild_agent()
+    
+    def _build_dynamic_prompt(self) -> ChatPromptTemplate:
+        """
+        Build the system prompt dynamically, including client context if available.
+        
+        Returns:
+            ChatPromptTemplate: The complete prompt template
+        """
+        from app.agents.prompts.prompt_manager import get_client_info_variable
+        
+        # Get client info variable
+        if self.has_client_context and self.client_context:
+            client_info = get_client_info_variable(self.client_context, self.detected_language)
+        else:
+            client_info = "Aucune information client disponible"
+        
+        # Replace {Client_info} in the base prompt
+        system_prompt = self.base_system_prompt.format(Client_info=client_info)
+        
+        return ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
             MessagesPlaceholder("agent_scratchpad")
         ])
-        
-        # Create LangChain agent
+    
+
+    
+    def set_client_context(self, client_info: Dict[str, Any]) -> None:
+        """Set client context and rebuild prompt"""
+        self.client_context = client_info.copy() if client_info else {}
+        self.has_client_context = bool(self.client_context)
+        self.prompt = self._build_dynamic_prompt()
         self._rebuild_agent()
+        
+        if self.has_client_context:
+            print(f"📇 Contexte client défini : {self.client_context.get('empresa', 'Entreprise inconnue')}")
+        else:
+            print("📇 Contexte client effacé")
+    
+    def clear_client_context(self) -> None:
+        """Clear client context and rebuild prompt."""
+        self.client_context = {}
+        self.has_client_context = False
+        self.prompt = self._build_dynamic_prompt()
+        self._rebuild_agent()
+        print("📇 Contexte client effacé")
     
     def _rebuild_agent(self):
         """Rebuild agent with current configuration"""
@@ -124,25 +169,16 @@ class CCILangChainAgent:
         
         if detected_lang != self.detected_language:
             print(f"🌍 Langue détectée : {detected_lang}")
-            self.detected_language = detected_lang
-            
-            # Synchronize language with tools
-            set_tools_language(detected_lang)
+            set_agent_language(self, detected_lang)
             
             # Adapt prompt according to language
             prompt_name = get_prompt_for_language(detected_lang)
             try:
-                new_system_prompt = load_prompt(prompt_name)
+                self.base_system_prompt = load_prompt(prompt_name)
+                self.base_prompt_name = prompt_name
                 
-                # Recreate prompt template
-                self.prompt = ChatPromptTemplate.from_messages([
-                    ("system", new_system_prompt),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                    MessagesPlaceholder("agent_scratchpad")
-                ])
-                
-                # Rebuild agent
+                # Rebuild prompt with client context if available
+                self.prompt = self._build_dynamic_prompt()
                 self._rebuild_agent()
                 
                 print(f"✅ Agent et tools adaptés pour la langue : {detected_lang}")
@@ -271,7 +307,9 @@ class CCILangChainAgent:
             "first_interaction": self.first_interaction,
             "memory_messages": memory_messages,
             "memory_summary": memory_summary,
-            "version": "2.0"  # Updated version for simplified state
+            "client_context": self.client_context,
+            "has_client_context": self.has_client_context,
+            "version": "2.1"  # Updated version with client context
         }
     
     def load_state(self, state: Dict[str, Any]) -> None:
@@ -290,20 +328,20 @@ class CCILangChainAgent:
         self.language_detected = state.get("language_detected", False)
         self.first_interaction = state.get("first_interaction", True)
         
+        # Load client context
+        self.client_context = state.get("client_context", {})
+        self.has_client_context = state.get("has_client_context", False)
+        
         # Reload language in tools if detected
         if self.language_detected:
-            set_tools_language(self.detected_language)
+            set_agent_language(self, self.detected_language)
             
-            # Adapt prompt according to language
+            # Adapt prompt according to language with client context
             prompt_name = get_prompt_for_language(self.detected_language)
             try:
-                system_prompt = load_prompt(prompt_name)
-                self.prompt = ChatPromptTemplate.from_messages([
-                    ("system", system_prompt),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                    MessagesPlaceholder("agent_scratchpad")
-                ])
+                self.base_system_prompt = load_prompt(prompt_name)
+                self.base_prompt_name = prompt_name
+                self.prompt = self._build_dynamic_prompt()
                 self._rebuild_agent()
             except Exception as e:
                 print(f"⚠️ Erreur rechargement prompt : {e}")
@@ -341,7 +379,7 @@ class CCILangChainAgent:
                 pass
     
     @classmethod
-    def from_state(cls, state: Dict[str, Any], prompt_name: str = "diagnostic_prompt") -> 'CCILangChainAgent':
+    def from_state(cls, state: Dict[str, Any], prompt_name: str = "prompt_fr") -> 'CCILangChainAgent':
         """
         Create agent instance from serialized state (for WhatsApp)
         
@@ -376,12 +414,10 @@ class CCILangChainAgent:
         """Reset agent for new conversation"""
         self.memory.clear()
         self.current_question = 1
-        self.detected_language = "fr"
-        self.language_detected = False
-        self.first_interaction = True
-        
-        # Reset tools language to French
-        set_tools_language("fr")
+        self.client_context = {}
+        self.has_client_context = False
+        self.prompt = self._build_dynamic_prompt()
+        set_agent_language(self, "fr")
     
     def set_language(self, lang: Literal["fr", "es"]) -> bool:
         """
@@ -397,20 +433,14 @@ class CCILangChainAgent:
             self.detected_language = lang
             
             # Synchronize language with tools
-            set_tools_language(lang)
+            set_agent_language(self, lang)
             
             prompt_name = get_prompt_for_language(lang)
-            system_prompt = load_prompt(prompt_name)
+            self.base_system_prompt = load_prompt(prompt_name)
+            self.base_prompt_name = prompt_name
             
-            # Recreate prompt template
-            self.prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-                MessagesPlaceholder("agent_scratchpad")
-            ])
-            
-            # Rebuild agent
+            # Rebuild prompt with client context if available
+            self.prompt = self._build_dynamic_prompt()
             self._rebuild_agent()
             self.language_detected = True
             self.first_interaction = False
@@ -424,7 +454,7 @@ class CCILangChainAgent:
 # FACTORY FUNCTION
 # =============================================================================
 
-def create_cci_agent(prompt_name: str = "diagnostic_prompt") -> CCILangChainAgent:
+def create_cci_agent(prompt_name: str = "prompt_fr") -> CCILangChainAgent:
     """
     Factory to create CCI bilingual agent instance.
     

@@ -5,7 +5,7 @@ Bilingual support French/Spanish
 """
 
 from langchain.tools import tool
-from app.agents.rag import query_rag
+from app.agents.tools.rag import query_rag
 from typing import Optional, Any
 
 # Global variable to store detected language (will be updated by agent)

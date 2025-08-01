@@ -8,31 +8,12 @@ import asyncio
 from typing import Dict, Any, Optional
 from app.agents.langchain_agent import CCILangChainAgent
 
-# In-memory storage for user states (replace with Redis/DB in production)
-# TODO: Replace with Redis or database for production deployment
-_user_states: Dict[str, Dict[str, Any]] = {}
-
-async def load_user_state(user_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Load user's conversation state.
-    
-    Args:
-        user_id: Unique user identifier
-        
-    Returns:
-        Dict containing user's agent state or None if not found
-    """
-    return _user_states.get(user_id)
-
-async def save_user_state(user_id: str, state: Dict[str, Any]) -> None:
-    """
-    Save user's conversation state.
-    
-    Args:
-        user_id: Unique user identifier
-        state: Agent state to save
-    """
-    _user_states[user_id] = state
+# Redis state management - replaces in-memory storage for production scalability
+from app.agents.redis_manager import (
+    load_user_state, 
+    save_user_state, 
+    get_redis_manager
+)
 
 async def reset_user_conversation(user_id: str) -> None:
     """
@@ -41,8 +22,8 @@ async def reset_user_conversation(user_id: str) -> None:
     Args:
         user_id: Unique user identifier
     """
-    if user_id in _user_states:
-        del _user_states[user_id]
+    manager = get_redis_manager()
+    await manager.delete_user_state(user_id)
 
 async def get_user_status(user_id: str) -> Dict[str, Any]:
     """
@@ -71,13 +52,24 @@ async def get_user_status(user_id: str) -> Dict[str, Any]:
         "diagnostic_complete": state.get("current_question", 1) > 8
     }
 
+async def get_redis_stats() -> Dict[str, Any]:
+    """
+    Get Redis connection and usage statistics.
+    
+    Returns:
+        dict: Redis statistics
+    """
+    manager = get_redis_manager()
+    return manager.get_stats()
+
 async def whatsapp_chat(user_id: str, user_input: str) -> str:
     """
     Main function for WhatsApp conversations.
     Stateless: loads state, processes message, saves state.
+    Automatically enriches agent's system prompt with contact information if available.
     
     Args:
-        user_id: Unique user identifier  
+        user_id: Unique user identifier (WhatsApp phone number)
         user_input: User's message
         
     Returns:
@@ -93,8 +85,13 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
         else:
             # Create new agent for new user
             agent = CCILangChainAgent()
+            
+            # For new users, try to set client context from contact database
+            contact_info = await get_contact_info(user_id)
+            if contact_info:
+                agent.set_client_context(contact_info)
         
-        # Process user message
+        # Process user message (agent has enriched prompt if contact found)
         response = await agent.chat(user_input, user_id)
         
         # Save updated state
@@ -106,4 +103,57 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
     except Exception as e:
         error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvez-vous réessayer ? (Erreur: {str(e)})"
         return error_msg
+
+async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve contact information for a WhatsApp user ID.
+    
+    Args:
+        user_id: WhatsApp phone number
+        
+    Returns:
+        Dict with contact information or None if not found
+    """
+    try:
+        from whatsapp_contact.contacts_manager import get_contacts_manager
+        contacts_manager = get_contacts_manager()
+        
+        if not contacts_manager.contacts_loaded:
+            # Try to load contacts if not already loaded
+            # You can set a default path here or use environment variable
+            import os
+            excel_path = os.getenv('CONTACTS_EXCEL_PATH', 'whatsapp_contact/Base de datos proyecto IA (1).xlsx')
+            contacts_manager.load_contacts(excel_path)
+        
+        if contacts_manager.contacts_loaded:
+            contact_info = contacts_manager.find_contact_by_phone(user_id)
+            if contact_info:
+                print(f"📇 Contact trouvé pour {user_id}: {contact_info.get('empresa', 'Entreprise inconnue')}")
+                return contact_info
+            else:
+                print(f"📇 Aucun contact trouvé pour {user_id}")
+        else:
+            print("⚠️ Base de données de contacts non disponible")
+            
+    except Exception as e:
+        print(f"⚠️ Erreur lors de la recherche de contact : {e}")
+    
+    return None
+
+def configure_contacts_database(excel_file_path: str) -> bool:
+    """
+    Configure the contacts database with a specific Excel file.
+    
+    Args:
+        excel_file_path: Path to the contacts Excel file
+        
+    Returns:
+        bool: True if configuration successful
+    """
+    try:
+        contacts_manager = get_contacts_manager()
+        return contacts_manager.load_contacts(excel_file_path)
+    except Exception as e:
+        print(f"❌ Erreur configuration base contacts : {e}")
+        return False
 

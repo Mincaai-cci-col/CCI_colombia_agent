@@ -19,7 +19,7 @@ def load_prompt(prompt_name: str) -> str:
     Raises:
         FileNotFoundError: If prompt file doesn't exist
     """
-    prompt_path = Path(__file__).parent / "prompts" / f"{prompt_name}.txt"
+    prompt_path = Path(__file__).parent / f"{prompt_name}.txt"
     
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
@@ -38,6 +38,6 @@ def get_prompt_for_language(lang: Literal["fr", "es"]) -> str:
         str: Prompt file name to use
     """
     if lang == "es":
-        return "diagnostic_prompt_es"
+        return "prompt_es"
     else:
-        return "diagnostic_prompt"  # French by default 
+        return "prompt_fr"  # French by default 
