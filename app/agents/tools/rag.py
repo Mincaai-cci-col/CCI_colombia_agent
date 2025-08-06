@@ -121,13 +121,13 @@ async def query_rag(
         context = "\n\n".join(documents)
         
         if lang == "es":
-            system_prompt = """Eres un asistente experto de la CCI Francia-Colombia. 
-            Basándote en la información proporcionada, responde de manera clara, útil y profesional.
-            Reformula la información de manera natural y conversacional."""
+            system_prompt = """Eres MarIA de la CCI Francia-Colombia. 
+            Responde de manera clara y simple basándote en la información proporcionada.
+            Sé natural y directa, sin ser demasiado formal."""
         else:
-            system_prompt = """Tu es un assistant expert de la CCI France-Colombie. 
-            En te basant sur les informations fournies, réponds de manière claire, utile et professionnelle.
-            Reformule les informations de manière naturelle et conversationnelle."""
+            system_prompt = """Tu es MarIA de la CCI France-Colombie. 
+            Réponds de manière claire et simple en te basant sur les informations fournies.
+            Sois naturelle et directe, sans être trop formelle."""
         
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
