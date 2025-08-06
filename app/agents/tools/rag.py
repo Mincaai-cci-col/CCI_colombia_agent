@@ -103,13 +103,13 @@ async def query_rag(
                 )
                 documents.append(text_content)
         
-        # Log the documents found in Pinecone
-        print(f"🗂️  Pinecone Documents Found: {len(documents)} documents")
-        for i, doc in enumerate(documents[:3]):  # Show first 3 documents
-            print(f"   Doc {i+1}: {doc[:150]}{'...' if len(doc) > 150 else ''}")
-        if len(documents) > 3:
-            print(f"   ... and {len(documents) - 3} more documents")
-        print("   " + "-"*40)
+        # Log the documents found in Pinecone (commented for performance)
+        # print(f"🗂️  Pinecone Documents Found: {len(documents)} documents")
+        # for i, doc in enumerate(documents[:3]):  # Show first 3 documents
+        #     print(f"   Doc {i+1}: {doc[:150]}{'...' if len(doc) > 150 else ''}")
+        # if len(documents) > 3:
+        #     print(f"   ... and {len(documents) - 3} more documents")
+        # print("   " + "-"*40)
         
         if not documents:
             if lang == "es":
@@ -132,13 +132,13 @@ async def query_rag(
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Question: {query}\n\nInformations: {context}"}
             ],
             temperature=0.3,
-            max_tokens=500
+            max_tokens=300
         )
         
         return response.choices[0].message.content

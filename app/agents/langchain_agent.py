@@ -18,8 +18,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.memory import ConversationSummaryBufferMemory
 
 from app.agents.tools.tools import get_agent_tools, set_tools_language
-from app.agents.language.language import detect_language_from_input
-from app.agents.language.language_manager import set_agent_language
+from app.agents.language.language_manager import detect_language_from_input, set_agent_language
 from app.agents.prompts.prompts_utils import load_prompt, get_prompt_for_language
 
 
@@ -30,7 +29,7 @@ class CCILangChainAgent:
     Modular architecture:
     - Tools: app/agents/tools.py
     - Prompts: app/agents/prompts/ (French + Spanish)
-    - Language: app/utils/language.py
+    - Language: app/agents/language/language_manager.py
     - Agent: app/agents/langchain_agent.py (this file)
     """
     
@@ -41,10 +40,11 @@ class CCILangChainAgent:
         Args:
             prompt_name: Name of the prompt to load (without extension)
         """
-        # LLM configuration
+        # LLM configuration - optimized for WhatsApp
         self.llm = ChatOpenAI(
-            model="gpt-4o",
+            model="gpt-4.1",
             temperature=0.3,
+            max_tokens=400,  # Limit responses for WhatsApp readability
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
@@ -90,12 +90,13 @@ class CCILangChainAgent:
     
     def _build_dynamic_prompt(self) -> ChatPromptTemplate:
         """
-        Build the system prompt dynamically, including client context if available.
+        Build the system prompt dynamically, including client context and current date.
         
         Returns:
             ChatPromptTemplate: The complete prompt template
         """
         from app.agents.prompts.prompt_manager import get_client_info_variable
+        from app.agents.tools.tools import get_colombia_current_date
         
         # Get client info variable
         if self.has_client_context and self.client_context:
@@ -103,8 +104,14 @@ class CCILangChainAgent:
         else:
             client_info = "Aucune information client disponible"
         
-        # Replace {Client_info} in the base prompt
-        system_prompt = self.base_system_prompt.format(Client_info=client_info)
+        # Get current date in Colombia timezone
+        current_date = get_colombia_current_date()
+        
+        # Replace variables in the base prompt
+        system_prompt = self.base_system_prompt.format(
+            Client_info=client_info,
+            current_date=current_date
+        )
         
         return ChatPromptTemplate.from_messages([
             ("system", system_prompt),
@@ -150,7 +157,7 @@ class CCILangChainAgent:
             memory=self.memory,
             verbose=True,
             max_iterations=3,
-            early_stopping_method="generate",
+            # early_stopping_method deprecated - removed for compatibility
             return_intermediate_steps=True
         )
     
