@@ -96,31 +96,7 @@ async def rag_search_tool(query: str) -> str:
         # print(f"❌ RAG Error: {error_msg}")  # Commented for performance
         return error_msg
 
-# =============================================================================
-# QUESTION COUNTER TOOL - SIMPLE
-# =============================================================================
-
-@tool
-def question_asked() -> str:
-    """
-    Marque qu'une question du questionnaire a été posée.
-    
-    Utilise cette fonction juste après avoir posé une question du questionnaire
-    (pas pour les questions générales sur la CCI).
-    
-    Returns:
-        Confirmation que la question a été comptée
-    """
-    try:
-        success_msg = "✅ Question comptée"
-        if get_current_language() == "es":
-            success_msg = "✅ Pregunta contada"
-        return success_msg
-    except Exception as e:
-        error_msg = f"Erreur : {str(e)}"
-        if get_current_language() == "es":
-            error_msg = f"Error: {str(e)}"
-        return error_msg
+# Question counter tool removed - using natural conversation flow instead
 
 # =============================================================================
 # TOOLS FACTORY
@@ -137,8 +113,7 @@ def get_agent_tools(agent_ref: Optional[Any] = None):
         List of LangChain tools
     """
     tools = [
-        rag_search_tool,
-        question_asked
+        rag_search_tool
     ]
     
     return tools 

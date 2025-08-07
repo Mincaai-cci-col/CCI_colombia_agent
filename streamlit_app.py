@@ -40,7 +40,7 @@ def reset_conversation():
 
 Mon rôle est de mieux comprendre vos besoins en tant qu'adhérent(e) et de vous accompagner si vous avez la moindre question concernant nos offres, services, événements.
 
-📋 Ce petit échange comprend 7 questions simples, et ne vous prendra que quelques minutes.
+📋 Ce petit échange comprend 6 questions simples, et ne vous prendra que quelques minutes.
 
 **Dites-moi quand vous êtes prêt(e), je suis à votre écoute** 😊
 
@@ -50,7 +50,7 @@ Mon rôle est de mieux comprendre vos besoins en tant qu'adhérent(e) et de vous
 
 Mi objetivo es comprender mejor tus necesidades como miembro y acompañarte si tienes cualquier duda sobre nuestras ofertas, servicios o eventos.
 
-📋 Este breve intercambio contiene 7 preguntas sencillas y solo te tomará unos minutos.
+📋 Este breve intercambio contiene 6 preguntas sencillas y solo te tomará unos minutos.
 
 **Dime cuándo estés listo(a), estoy aquí para ayudarte** 😊"""
     

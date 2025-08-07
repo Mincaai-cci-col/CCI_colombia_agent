@@ -49,7 +49,7 @@ async def get_embedding(text: str) -> List[float]:
 async def query_rag(
     query: str,
     lang: str,
-    top_k: int = 3,
+    top_k: int = 2,
     namespace: str = None
 ) -> str:
     """

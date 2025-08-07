@@ -44,7 +44,7 @@ class CCILangChainAgent:
         self.llm = ChatOpenAI(
             model="gpt-4.1",
             temperature=0.3,
-            max_tokens=400,  # Limit responses for WhatsApp readability
+            max_tokens=500,  # Limit responses for WhatsApp readability
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
@@ -76,8 +76,7 @@ class CCILangChainAgent:
             output_key="output"
         )
         
-        # Diagnostic state - simplified
-        self.current_question = 1
+        # Conversation state - simplified
         
         # Load tools from separate module
         self.tools = get_agent_tools(self)
@@ -248,38 +247,28 @@ class CCILangChainAgent:
             result: Agent execution result
         """
         if "intermediate_steps" not in result:
-            print(f"⚠️ No intermediate_steps in result. Current question: {self.current_question}")
+            print(f"⚠️ No intermediate_steps in result.")
             return
             
-        print(f"🔍 Processing {len(result['intermediate_steps'])} tool calls. Current question: {self.current_question}")
+        print(f"🔍 Processing {len(result['intermediate_steps'])} tool calls.")
         
         for step in result["intermediate_steps"]:
             action, observation = step
             print(f"🔧 Tool used: {action.tool}")
-            
-            # Simple question counter
-            if action.tool == "question_asked":
-                self.current_question = min(self.current_question + 1, 9)  # Max 8 questions
-                print(f"📊 Question asked! Now at question {self.current_question}/8")
     
     def get_status(self) -> Dict[str, Any]:
         """
-        Get complete status of agent and diagnostic.
+        Get complete status of agent and conversation.
         
         Returns:
             dict: Current state information
         """
         memory_history = self.memory.chat_memory.messages if self.memory.chat_memory else []
         
-        questions_asked = max(0, self.current_question - 1)  # Since we start at 1
-        
         return {
-            "current_question": self.current_question,
-            "questions_asked": questions_asked,
             "detected_language": self.detected_language,
             "language_detected": self.language_detected,
             "memory_messages": len(memory_history),
-            "is_diagnostic_complete": questions_asked >= 8,
             "first_interaction": self.first_interaction
         }
     
@@ -308,7 +297,6 @@ class CCILangChainAgent:
             pass
         
         return {
-            "current_question": self.current_question,
             "detected_language": self.detected_language,
             "language_detected": self.language_detected,
             "first_interaction": self.first_interaction,
@@ -316,7 +304,7 @@ class CCILangChainAgent:
             "memory_summary": memory_summary,
             "client_context": self.client_context,
             "has_client_context": self.has_client_context,
-            "version": "2.1"  # Updated version with client context
+            "version": "2.2"  # Removed question counter for natural flow
         }
     
     def load_state(self, state: Dict[str, Any]) -> None:
@@ -330,7 +318,6 @@ class CCILangChainAgent:
             return
         
         # Load basic state
-        self.current_question = state.get("current_question", 1)
         self.detected_language = state.get("detected_language", "fr")
         self.language_detected = state.get("language_detected", False)
         self.first_interaction = state.get("first_interaction", True)
