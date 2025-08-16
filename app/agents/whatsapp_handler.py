@@ -7,6 +7,8 @@ Manages user state persistence for multi-turn conversations
 import asyncio
 from typing import Dict, Any, Optional
 from app.agents.langchain_agent import CCILangChainAgent
+import requests
+import os
 
 # Redis state management - replaces in-memory storage for production scalability
 from app.agents.redis_manager import (
@@ -78,6 +80,7 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
     try:
         # Load existing user state
         user_state = await load_user_state(user_id)
+        print(f"🔍 Chargement de l'état utilisateur pour {user_id}: {user_state}")
         
         if user_state:
             # Restore agent from saved state
@@ -114,30 +117,37 @@ async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Dict with contact information or None if not found
     """
-    try:
-        from whatsapp_contact.contacts_manager import get_contacts_manager
-        contacts_manager = get_contacts_manager()
+    # try:
+    #     from whatsapp_contact.contacts_manager import get_contacts_manager
+    #     contacts_manager = get_contacts_manager()
         
-        if not contacts_manager.contacts_loaded:
-            # Try to load contacts if not already loaded
-            # You can set a default path here or use environment variable
-            import os
-            excel_path = os.getenv('CONTACTS_EXCEL_PATH', 'whatsapp_contact/Base de datos proyecto IA (1).xlsx')
-            contacts_manager.load_contacts(excel_path)
+    #     if not contacts_manager.contacts_loaded:
+    #         # Try to load contacts if not already loaded
+    #         # You can set a default path here or use environment variable
+    #         import os
+    #         excel_path = os.getenv('CONTACTS_EXCEL_PATH', 'whatsapp_contact/Base de datos proyecto IA (1).xlsx')
+    #         contacts_manager.load_contacts(excel_path)
         
-        if contacts_manager.contacts_loaded:
-            contact_info = contacts_manager.find_contact_by_phone(user_id)
-            if contact_info:
-                print(f"📇 Contact trouvé pour {user_id}: {contact_info.get('empresa', 'Entreprise inconnue')}")
-                return contact_info
-            else:
-                print(f"📇 Aucun contact trouvé pour {user_id}")
-        else:
-            print("⚠️ Base de données de contacts non disponible")
+    #     if contacts_manager.contacts_loaded:
+    #         contact_info = contacts_manager.find_contact_by_phone(user_id)
+    #         if contact_info:
+    #             print(f"📇 Contact trouvé pour {user_id}: {contact_info.get('empresa', 'Entreprise inconnue')}")
+    #             return contact_info
+    #         else:
+    #             print(f"📇 Aucun contact trouvé pour {user_id}")
+    #     else:
+    #         print("⚠️ Base de données de contacts non disponible")
             
-    except Exception as e:
-        print(f"⚠️ Erreur lors de la recherche de contact : {e}")
+    # except Exception as e:
+    #     print(f"⚠️ Erreur lors de la recherche de contact : {e}")
     
+    response = requests.get(f"{os.getenv('BACKEND_URL')}/api/v1/whatsapp/info/{user_id}")
+    print(response.json().data)
+    if response.status_code == 200:
+        contact_info = response.json()
+        if contact_info:
+            print(contact_info)
+            return contact_info if contact_info else None
     return None
 
 def configure_contacts_database(excel_file_path: str) -> bool:
