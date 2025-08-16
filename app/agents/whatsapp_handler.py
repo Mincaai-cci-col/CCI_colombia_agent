@@ -142,11 +142,9 @@ async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
     #     print(f"⚠️ Erreur lors de la recherche de contact : {e}")
     
     response = requests.get(f"{os.getenv('BACKEND_URL')}/api/v1/whatsapp/info/{user_id}")
-    print(response.json().data)
     if response.status_code == 200:
         contact_info = response.json()
         if contact_info:
-            print(contact_info)
             return contact_info if contact_info else None
     return None
 
