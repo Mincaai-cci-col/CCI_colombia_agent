@@ -42,7 +42,7 @@ class CCILangChainAgent:
         """
         # LLM configuration - optimized for WhatsApp
         self.llm = ChatOpenAI(
-            model="gpt-4o",
+            model="gpt-4.1",
             temperature=0.3,
             max_tokens=500,  # Limit responses for WhatsApp readability
             api_key=os.getenv("OPENAI_API_KEY")
@@ -170,11 +170,12 @@ class CCILangChainAgent:
         if self.language_detected:
             return  # Language already detected
         
-        print(f"🔍 Détection de langue en cours...")
+        print(f"🔍 Détection de langue en cours pour: '{user_input}'")
         detected_lang = await detect_language_from_input(user_input)
+        print(f"🔍 Langue détectée: {detected_lang}, langue actuelle: {self.detected_language}")
         
         if detected_lang != self.detected_language:
-            print(f"🌍 Langue détectée : {detected_lang}")
+            print(f"🌍 Changement de langue : {self.detected_language} → {detected_lang}")
             set_agent_language(self, detected_lang)
             
             # Adapt prompt according to language
@@ -188,6 +189,8 @@ class CCILangChainAgent:
                 self._rebuild_agent()
                 
                 print(f"✅ Agent et tools adaptés pour la langue : {detected_lang}")
+                print(f"✅ Prompt chargé : {prompt_name}")
+                print(f"✅ Premier mots du prompt : {self.base_system_prompt[:100]}...")
                 
             except Exception as e:
                 print(f"⚠️ Erreur adaptation langue : {e}")
@@ -234,9 +237,21 @@ class CCILangChainAgent:
             return agent_response
             
         except Exception as e:
-            error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvons-nous continuer ? (Erreur: {str(e)})"
-            if self.detected_language == "es":
-                error_msg = f"Disculpe, encontré un problema técnico. ¿Podemos continuar? (Error: {str(e)})"
+            error_str = str(e)
+            print(f"❌ Erreur dans chat(): {error_str}")
+            
+            # Messages d'erreur plus informatifs
+            if "peer closed connection" in error_str or "incomplete chunked read" in error_str:
+                if self.detected_language == "es":
+                    error_msg = "Disculpe, hubo un problema de conexión temporal. ¿Podemos continuar con tu consulta?"
+                else:
+                    error_msg = "Désolé, il y a eu un problème de connexion temporaire. Pouvons-nous continuer avec votre demande ?"
+            else:
+                if self.detected_language == "es":
+                    error_msg = f"Disculpe, encontré un problema técnico. ¿Podemos continuar? (Error: {error_str})"
+                else:
+                    error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvons-nous continuer ? (Erreur: {error_str})"
+            
             return error_msg
     
     def _process_tool_calls(self, result: Dict[str, Any]) -> None:
