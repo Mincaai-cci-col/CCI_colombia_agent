@@ -132,7 +132,7 @@ async def query_rag(
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
         response = await client.chat.completions.create(
-            model="gpt-4.1",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Question: {query}\n\nInformations: {context}"}

@@ -42,7 +42,7 @@ class CCILangChainAgent:
         """
         # LLM configuration - optimized for WhatsApp
         self.llm = ChatOpenAI(
-            model="gpt-4.1",
+            model="gpt-4.1-mini",
             temperature=0.3,
             max_tokens=500,  # Limit responses for WhatsApp readability
             api_key=os.getenv("OPENAI_API_KEY")
