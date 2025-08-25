@@ -67,13 +67,17 @@ class CCILangChainAgent:
             self.base_system_prompt = "Tu es un agent conversationnel expert de la CCI France-Colombie."
         
         # Conversational memory with automatic summarization
+        # Use explicit encoding to avoid model detection issues
+        import tiktoken
         self.memory = ConversationSummaryBufferMemory(
             llm=self.llm,
             max_token_limit=2000,
             return_messages=True,
             memory_key="chat_history",
             input_key="input",
-            output_key="output"
+            output_key="output",
+            # Explicitly set the tokenizer to avoid model detection
+            tokenizer=tiktoken.encoding_for_model("gpt-4")  # Use gpt-4 encoding for compatibility
         )
         
         # Conversation state - simplified
