@@ -15,7 +15,7 @@ load_dotenv()
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.memory import ConversationSummaryBufferMemory
+from langchain.memory import ConversationBufferWindowMemory
 
 from app.agents.tools.tools import get_agent_tools, set_tools_language
 from app.agents.language.language_manager import detect_language_from_input, set_agent_language
@@ -66,18 +66,14 @@ class CCILangChainAgent:
             print("🔄 Utilisation du prompt par défaut...")
             self.base_system_prompt = "Tu es un agent conversationnel expert de la CCI France-Colombie."
         
-        # Conversational memory with automatic summarization
-        # Use explicit encoding to avoid model detection issues
-        import tiktoken
-        self.memory = ConversationSummaryBufferMemory(
-            llm=self.llm,
-            max_token_limit=2000,
+        # Conversational memory - use simple buffer to avoid tiktoken issues
+        from langchain.memory import ConversationBufferWindowMemory
+        self.memory = ConversationBufferWindowMemory(
+            k=10,  # Keep last 10 exchanges (20 messages total)
             return_messages=True,
             memory_key="chat_history",
             input_key="input",
-            output_key="output",
-            # Explicitly set the tokenizer to avoid model detection
-            tokenizer=tiktoken.encoding_for_model("gpt-4")  # Use gpt-4 encoding for compatibility
+            output_key="output"
         )
         
         # Conversation state - simplified
