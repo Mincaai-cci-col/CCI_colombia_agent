@@ -11,6 +11,7 @@ import streamlit as st
 import asyncio
 import uuid
 from app.agents.whatsapp_handler import whatsapp_chat, reset_user_conversation, get_user_status
+from app.agents.redis_manager import load_user_state
 
 def check_environment():
     """Check if required environment variables are set"""
@@ -93,16 +94,53 @@ def main():
             reset_conversation()
             st.rerun()
         
-        # Display user status
+        # Quick test buttons
+        st.markdown("### 🧪 Tests Rapides")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💬 Question Export", help="Teste une question typique"):
+                test_message = "Je travaille dans l'export de café vers la France"
+                st.session_state.test_message = test_message
+        
+        with col2:
+            if st.button("❓ Question Libre", help="Teste mode assistance"):
+                test_message = "Quels sont vos services de formation ?"
+                st.session_state.test_message = test_message
+        
+        # Display user status with agent mode
         try:
             status = asyncio.run(get_user_status(st.session_state.user_id))
-            st.markdown("### 📊 Statut")
-            if status["exists"]:
-                st.markdown(f"- **Langue:** {status['language']}")
-                if status["diagnostic_complete"]:
-                    st.success("✅ Diagnostic terminé")
+            user_state = asyncio.run(load_user_state(st.session_state.user_id))
+            
+            st.markdown("### 📊 Statut Agent")
+            
+            if user_state:
+                # Display agent mode with colored badge
+                agent_mode = user_state.get("agent_mode", "questionnaire")
+                questionnaire_completed = user_state.get("questionnaire_completed", False)
+                detected_language = user_state.get("detected_language", "fr")
+                
+                if agent_mode == "questionnaire":
+                    st.markdown("🎯 **Mode:** `questionnaire`", help="L'agent pose des questions pour comprendre vos besoins")
+                else:
+                    st.markdown("🤖 **Mode:** `assistance`", help="L'agent répond à vos questions libres")
+                
+                st.markdown(f"🌍 **Langue:** `{detected_language.upper()}`")
+                
+                if questionnaire_completed:
+                    st.success("✅ Questionnaire terminé")
+                else:
+                    st.info("📋 Questionnaire en cours")
+                
+                # Show memory
+                memory_count = len(user_state.get("memory_messages", []))
+                st.markdown(f"💭 **Mémoire:** {memory_count} messages")
+                
             else:
-                st.info("Nouvelle conversation")
+                st.markdown("🎯 **Mode:** `questionnaire` (défaut)")
+                st.info("🆕 Nouvelle conversation")
+                
         except Exception as e:
             st.error(f"Erreur statut: {e}")
     
@@ -114,8 +152,18 @@ def main():
             st.markdown(message["content"])
             # Removed timestamp display
     
+    # Handle test messages from sidebar
+    if "test_message" in st.session_state:
+        prompt = st.session_state.test_message
+        del st.session_state.test_message
+    else:
+        prompt = None
+    
     # Chat input
-    if prompt := st.chat_input("Tapez votre message..."):
+    if not prompt:
+        prompt = st.chat_input("Tapez votre message...")
+    
+    if prompt:
         # Add user message to chat - removed timestamp
         st.session_state.messages.append({
             "role": "user", 
@@ -134,12 +182,25 @@ def main():
                     response = asyncio.run(whatsapp_chat(st.session_state.user_id, prompt))
                     st.markdown(response)
                     
+                    # Check agent mode after response
+                    user_state = asyncio.run(load_user_state(st.session_state.user_id))
+                    if user_state:
+                        agent_mode = user_state.get("agent_mode", "questionnaire")
+                        questionnaire_completed = user_state.get("questionnaire_completed", False)
+                        
+                        # Show mode transition if it happened
+                        if questionnaire_completed and agent_mode == "assistance":
+                            st.success("🔄 **Transition automatique vers mode assistance!**")
+                            st.info("L'agent va maintenant répondre à vos questions libres avec son outil RAG.")
+                    
                     # Add to session state - removed timestamp
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": response
                     })
-                    # Removed timestamp display
+                    
+                    # Force refresh of sidebar to show updated mode
+                    st.rerun()
                     
                 except Exception as e:
                     error_msg = f"❌ Erreur: {str(e)}"

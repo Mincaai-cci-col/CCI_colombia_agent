@@ -53,6 +53,10 @@ class CCILangChainAgent:
         self.language_detected = False  # Flag to know if language has been detected
         self.first_interaction = True
         
+        # Agent mode management
+        self.agent_mode: Literal["questionnaire", "assistance"] = "questionnaire"  # Default mode
+        self.questionnaire_completed = False
+        
         # Client context for dynamic prompt enrichment
         self.client_context: Dict[str, Any] = {}
         self.has_client_context = False
@@ -319,7 +323,9 @@ class CCILangChainAgent:
             "memory_summary": memory_summary,
             "client_context": self.client_context,
             "has_client_context": self.has_client_context,
-            "version": "2.2"  # Removed question counter for natural flow
+            "agent_mode": self.agent_mode,
+            "questionnaire_completed": self.questionnaire_completed,
+            "version": "2.3"  # Added agent mode management
         }
     
     def load_state(self, state: Dict[str, Any]) -> None:
@@ -336,6 +342,10 @@ class CCILangChainAgent:
         self.detected_language = state.get("detected_language", "fr")
         self.language_detected = state.get("language_detected", False)
         self.first_interaction = state.get("first_interaction", True)
+        
+        # Load agent mode state
+        self.agent_mode = state.get("agent_mode", "questionnaire")
+        self.questionnaire_completed = state.get("questionnaire_completed", False)
         
         # Load client context
         self.client_context = state.get("client_context", {})
@@ -422,9 +432,13 @@ class CCILangChainAgent:
     def reset(self) -> None:
         """Reset agent for new conversation"""
         self.memory.clear()
-        self.current_question = 1
         self.client_context = {}
         self.has_client_context = False
+        self.agent_mode = "questionnaire"  # Reset to questionnaire mode
+        self.questionnaire_completed = False
+        self.first_interaction = True
+        self.language_detected = False
+        self.detected_language = "fr"
         self.prompt = self._build_dynamic_prompt()
         set_agent_language(self, "fr")
     
@@ -458,6 +472,22 @@ class CCILangChainAgent:
         except Exception as e:
             print(f"Erreur définition langue : {e}")
             return False
+    
+    def mark_questionnaire_completed(self) -> None:
+        """
+        Mark questionnaire as completed and transition to assistance mode
+        """
+        self.questionnaire_completed = True
+        self.agent_mode = "assistance"
+        print(f"✅ Questionnaire marqué comme terminé, transition vers mode assistance")
+    
+    def should_transition_to_assistance(self) -> bool:
+        """
+        Check if questionnaire should transition to assistance mode
+        This method can be called after each agent response to check for transition triggers
+        """
+        return (self.agent_mode == "questionnaire" and 
+                self.questionnaire_completed)
 
 # =============================================================================
 # FACTORY FUNCTION

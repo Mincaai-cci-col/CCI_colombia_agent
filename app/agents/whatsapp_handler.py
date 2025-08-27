@@ -5,8 +5,9 @@ Manages user state persistence for multi-turn conversations
 """
 
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, Literal
 from app.agents.langchain_agent import CCILangChainAgent
+from app.agents.prompts.prompts_utils import get_prompt_for_mode_and_language, load_prompt
 import requests
 import os
 
@@ -66,9 +67,9 @@ async def get_redis_stats() -> Dict[str, Any]:
 
 async def whatsapp_chat(user_id: str, user_input: str) -> str:
     """
-    Main function for WhatsApp conversations.
+    Main function for WhatsApp conversations with dual mode support.
+    Handles questionnaire mode (default) and assistance mode (after questionnaire completion).
     Stateless: loads state, processes message, saves state.
-    Automatically enriches agent's system prompt with contact information if available.
     
     Args:
         user_id: Unique user identifier (WhatsApp phone number)
@@ -78,24 +79,49 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
         Agent's response
     """
     try:
-        # Load existing user state
+        # Load existing user state (no restart triggers needed)
         user_state = await load_user_state(user_id)
-        print(f"🔍 Chargement de l'état utilisateur pour {user_id}: {user_state}")
+        print(f"🔍 Chargement de l'état utilisateur pour {user_id}")
+        
+        # Determine agent mode and appropriate prompt
+        agent_mode, prompt_name = await determine_agent_mode_and_prompt(user_state, user_input)
+        print(f"🎯 Mode déterminé: {agent_mode}, prompt: {prompt_name}")
         
         if user_state:
-            # Restore agent from saved state
-            agent = CCILangChainAgent.from_state(user_state)
+            # Restore agent from saved state with appropriate prompt
+            agent = CCILangChainAgent(prompt_name=prompt_name)
+            agent.load_state(user_state)
+            
+            # Update mode if it changed (e.g., transition to assistance)
+            agent.agent_mode = agent_mode
         else:
-            # Create new agent for new user
-            agent = CCILangChainAgent()
+            # Create new agent for new user (questionnaire mode by default)
+            agent = CCILangChainAgent(prompt_name=prompt_name)
+            agent.agent_mode = agent_mode
             
             # For new users, try to set client context from contact database
             contact_info = await get_contact_info(user_id)
             if contact_info:
                 agent.set_client_context(contact_info)
         
-        # Process user message (agent has enriched prompt if contact found)
+        # Process user message
         response = await agent.chat(user_input, user_id)
+        
+        # Check if questionnaire should transition to assistance
+        if agent.agent_mode == "questionnaire" and should_transition_to_assistance_mode(response):
+            agent.mark_questionnaire_completed()
+            
+            # CRITIQUE: Rebuild agent avec le nouveau prompt assistance
+            new_prompt_name = get_prompt_for_mode_and_language("assistance", agent.detected_language)
+            try:
+                agent.base_system_prompt = load_prompt(new_prompt_name)
+                agent.base_prompt_name = new_prompt_name
+                agent.prompt = agent._build_dynamic_prompt()
+                agent._rebuild_agent()
+                print(f"✅ Transition + rebuild prompt vers mode assistance pour {user_id} (prompt: {new_prompt_name})")
+            except Exception as e:
+                print(f"⚠️ Erreur rebuild prompt après transition: {e}")
+                print(f"✅ Transition vers mode assistance pour {user_id} (prompt rebuild au prochain message)")
         
         # Save updated state
         new_state = agent.serialize_state()
@@ -105,6 +131,7 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
         
     except Exception as e:
         error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvez-vous réessayer ? (Erreur: {str(e)})"
+        print(f"❌ Erreur whatsapp_chat: {str(e)}")
         return error_msg
 
 async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
@@ -141,11 +168,20 @@ async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
     # except Exception as e:
     #     print(f"⚠️ Erreur lors de la recherche de contact : {e}")
     
-    response = requests.get(f"{os.getenv('BACKEND_URL')}/api/v1/whatsapp/info/{user_id}")
-    if response.status_code == 200:
-        contact_info = response.json()
-        if contact_info:
-            return contact_info if contact_info else None
+    backend_url = os.getenv('BACKEND_URL')
+    if not backend_url:
+        # No backend URL configured - skip contact lookup (for testing)
+        return None
+    
+    try:
+        response = requests.get(f"{backend_url}/api/v1/whatsapp/info/{user_id}")
+        if response.status_code == 200:
+            contact_info = response.json()
+            if contact_info:
+                return contact_info if contact_info else None
+    except Exception as e:
+        print(f"⚠️ Erreur récupération contact: {e}")
+    
     return None
 
 def configure_contacts_database(excel_file_path: str) -> bool:
@@ -164,4 +200,119 @@ def configure_contacts_database(excel_file_path: str) -> bool:
     except Exception as e:
         print(f"❌ Erreur configuration base contacts : {e}")
         return False
+
+async def determine_agent_mode_and_prompt(user_state: Optional[Dict[str, Any]], user_input: str) -> Tuple[Literal["questionnaire", "assistance"], str]:
+    """
+    Determine the appropriate agent mode and prompt based on user state.
+    
+    Simple logic:
+    - Default mode: questionnaire
+    - Assistance mode: only if questionnaire was completed (WhatsApp link sent)
+    
+    Args:
+        user_state: Current user state from Redis
+        user_input: Current user message (not used in decision)
+        
+    Returns:
+        Tuple of (agent_mode, prompt_name)
+    """
+    # Default language
+    detected_language = "fr"
+    
+    if user_state:
+        detected_language = user_state.get("detected_language", "fr")
+        questionnaire_completed = user_state.get("questionnaire_completed", False)
+        
+        if questionnaire_completed:
+            # User has completed questionnaire (WhatsApp link was sent) → assistance mode
+            mode = "assistance"
+        else:
+            # Questionnaire not completed → questionnaire mode
+            mode = "questionnaire"
+    else:
+        # New user → questionnaire mode by default
+        mode = "questionnaire"
+    
+    # Get appropriate prompt name
+    prompt_name = get_prompt_for_mode_and_language(mode, detected_language)
+    
+    return mode, prompt_name
+
+def should_transition_to_assistance_mode(agent_response: str) -> bool:
+    """
+    Analyze agent response to determine if questionnaire is completed based on actual prompt patterns.
+    Supports both French and Spanish patterns.
+    
+    Args:
+        agent_response: The agent's response to analyze
+        
+    Returns:
+        bool: True if transition to assistance mode should occur
+    """
+    response_lower = agent_response.lower()
+    
+    # Patterns from the actual prompts that indicate final recommendations
+    final_recommendation_patterns = [
+        # French patterns
+        "je vous recommande vivement",
+        "je vous recommande notre service",
+        "je pense que notre service",
+        "je pense que le service",
+        "super ! je pense que le service",
+        # Spanish patterns
+        "te recomiendo encarecidamente",
+        "te recomiendo nuestro servicio",
+        "creo que nuestro servicio",
+        "creo que el servicio",
+        "¡súper! creo que el servicio"
+    ]
+    
+    # Next step patterns that indicate final recommendation
+    next_step_patterns = [
+        # French patterns
+        "🚀 la suite est simple",
+        "🚀 la prochaine étape",
+        "👉 la prochaine étape",
+        "la suite est très simple",
+        "écrivez directement à",
+        # Spanish patterns
+        "🚀 la continuación es simple",
+        "🚀 el siguiente paso",
+        "👉 el siguiente paso",
+        "la continuación es muy simple",
+        "escribe directamente a"
+    ]
+    
+    # WhatsApp contact patterns (definitive sign of final recommendation)
+    whatsapp_patterns = [
+        "https://wa.me/",
+        "wa.me/",
+        "whatsapp"
+    ]
+    
+    # Contact person patterns (same names in both languages)
+    contact_patterns = [
+        "yasmine azlabi",
+        "nicolás velásquez", 
+        "valentina copete",
+        "laura morales",
+        "anouk esnault"
+    ]
+    
+    # Check for recommendation patterns
+    has_recommendation = any(pattern in response_lower for pattern in final_recommendation_patterns)
+    
+    # Check for next step/action patterns
+    has_next_step = any(pattern in response_lower for pattern in next_step_patterns)
+    
+    # Check for WhatsApp links (strongest indicator)
+    has_whatsapp_link = any(pattern in response_lower for pattern in whatsapp_patterns)
+    
+    # Check for specific contact person mentioned
+    has_contact_person = any(pattern in response_lower for pattern in contact_patterns)
+    
+    # Transition should occur if:
+    # 1. Has recommendation AND (next step OR whatsapp link OR contact person)
+    # 2. OR has whatsapp link (definitive indicator)
+    return (has_recommendation and (has_next_step or has_whatsapp_link or has_contact_person)) or has_whatsapp_link
 
