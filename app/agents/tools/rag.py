@@ -113,20 +113,46 @@ async def query_rag(
         
         if not documents:
             if lang == "es":
-                return "No encontré información específica sobre este tema en nuestra base de conocimientos."
+                return """No encontré información específica sobre este tema en nuestra base de conocimientos. 
+                
+Para obtener información detallada, te recomiendo contactar directamente:
+• Para Bogotá: Valentina Copete (+57 304 423 6731)
+• Para Medellín: Laura Morales (+57 304 400 2871)"""
             else:
-                return "Je n'ai pas trouvé d'informations spécifiques sur ce sujet dans notre base de connaissances."
+                return """Je n'ai pas trouvé d'informations spécifiques sur ce sujet dans notre base de connaissances.
+                
+Pour obtenir des informations détaillées, je vous recommande de contacter directement :
+• Pour Bogotá : Valentina Copete (+57 304 423 6731)
+• Pour Medellín : Laura Morales (+57 304 400 2871)"""
         
         # Reformulate response with OpenAI
         context = "\n\n".join(documents)
         
         if lang == "es":
             system_prompt = """Eres MarIA de la CCI Francia-Colombia. 
-            Responde de manera clara y simple basándote en la información proporcionada.
+            
+            REGLAS CRÍTICAS ANTI-ALUCINACIÓN:
+            - Responde SOLO basándote en la información proporcionada
+            - Si la información no es clara o completa, di "No tengo información clara sobre esto"
+            - NO inventes datos, fechas, nombres o detalles específicos
+            - Si no puedes responder con certeza, recomienda contactar:
+              * Para Bogotá: Valentina Copete (+57 304 423 6731)
+              * Para Medellín: Laura Morales (+57 304 400 2871)
+              * Para temas generales: ambos contactos
+            
             Sé natural y directa, sin ser demasiado formal."""
         else:
             system_prompt = """Tu es MarIA de la CCI France-Colombie. 
-            Réponds de manière claire et simple en te basant sur les informations fournies.
+            
+            RÈGLES CRITIQUES ANTI-HALLUCINATION :
+            - Réponds UNIQUEMENT en te basant sur les informations fournies
+            - Si l'information n'est pas claire ou complète, dis "Je n'ai pas d'information claire sur ce sujet"
+            - N'invente JAMAIS de données, dates, noms ou détails spécifiques
+            - Si tu ne peux pas répondre avec certitude, recommande de contacter :
+              * Pour Bogotá : Valentina Copete (+57 304 423 6731)
+              * Pour Medellín : Laura Morales (+57 304 400 2871)
+              * Pour questions générales : les deux contacts
+            
             Sois naturelle et directe, sans être trop formelle."""
         
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))

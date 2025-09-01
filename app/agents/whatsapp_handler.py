@@ -81,11 +81,9 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
     try:
         # Load existing user state (no restart triggers needed)
         user_state = await load_user_state(user_id)
-        print(f"🔍 Chargement de l'état utilisateur pour {user_id}")
         
         # Determine agent mode and appropriate prompt
         agent_mode, prompt_name = await determine_agent_mode_and_prompt(user_state, user_input)
-        print(f"🎯 Mode déterminé: {agent_mode}, prompt: {prompt_name}")
         
         if user_state:
             # Restore agent from saved state with appropriate prompt
@@ -118,10 +116,9 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
                 agent.base_prompt_name = new_prompt_name
                 agent.prompt = agent._build_dynamic_prompt()
                 agent._rebuild_agent()
-                print(f"✅ Transition + rebuild prompt vers mode assistance pour {user_id} (prompt: {new_prompt_name})")
+                pass  # Silent transition for performance
             except Exception as e:
-                print(f"⚠️ Erreur rebuild prompt après transition: {e}")
-                print(f"✅ Transition vers mode assistance pour {user_id} (prompt rebuild au prochain message)")
+                pass  # Silent error for performance
         
         # Save updated state
         new_state = agent.serialize_state()
@@ -130,9 +127,7 @@ async def whatsapp_chat(user_id: str, user_input: str) -> str:
         return response
         
     except Exception as e:
-        error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvez-vous réessayer ? (Erreur: {str(e)})"
-        print(f"❌ Erreur whatsapp_chat: {str(e)}")
-        return error_msg
+        return f"Désolé, j'ai rencontré un problème technique. Pouvez-vous réessayer ?"
 
 async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
     """
@@ -180,7 +175,7 @@ async def get_contact_info(user_id: str) -> Optional[Dict[str, Any]]:
             if contact_info:
                 return contact_info if contact_info else None
     except Exception as e:
-        print(f"⚠️ Erreur récupération contact: {e}")
+        pass  # Silent error for performance
     
     return None
 

@@ -132,10 +132,7 @@ class CCILangChainAgent:
         self.prompt = self._build_dynamic_prompt()
         self._rebuild_agent()
         
-        if self.has_client_context:
-            print(f"📇 Contexte client défini : {self.client_context.get('empresa', 'Entreprise inconnue')}")
-        else:
-            print("📇 Contexte client effacé")
+        # Silent context setting for performance
     
     def clear_client_context(self) -> None:
         """Clear client context and rebuild prompt."""
@@ -143,7 +140,7 @@ class CCILangChainAgent:
         self.has_client_context = False
         self.prompt = self._build_dynamic_prompt()
         self._rebuild_agent()
-        print("📇 Contexte client effacé")
+        # Silent context clearing for performance
     
     def _rebuild_agent(self):
         """Rebuild agent with current configuration"""
@@ -174,12 +171,9 @@ class CCILangChainAgent:
         if self.language_detected:
             return  # Language already detected
         
-        print(f"🔍 Détection de langue en cours pour: '{user_input}'")
         detected_lang = await detect_language_from_input(user_input)
-        print(f"🔍 Langue détectée: {detected_lang}, langue actuelle: {self.detected_language}")
         
         if detected_lang != self.detected_language:
-            print(f"🌍 Changement de langue : {self.detected_language} → {detected_lang}")
             set_agent_language(self, detected_lang)
             
             # Adapt prompt according to language
@@ -192,12 +186,8 @@ class CCILangChainAgent:
                 self.prompt = self._build_dynamic_prompt()
                 self._rebuild_agent()
                 
-                print(f"✅ Agent et tools adaptés pour la langue : {detected_lang}")
-                print(f"✅ Prompt chargé : {prompt_name}")
-                print(f"✅ Premier mots du prompt : {self.base_system_prompt[:100]}...")
-                
             except Exception as e:
-                print(f"⚠️ Erreur adaptation langue : {e}")
+                pass  # Silent fail for performance
         
         self.language_detected = True
     
@@ -241,22 +231,11 @@ class CCILangChainAgent:
             return agent_response
             
         except Exception as e:
-            error_str = str(e)
-            print(f"❌ Erreur dans chat(): {error_str}")
-            
-            # Messages d'erreur plus informatifs
-            if "peer closed connection" in error_str or "incomplete chunked read" in error_str:
-                if self.detected_language == "es":
-                    error_msg = "Disculpe, hubo un problema de conexión temporal. ¿Podemos continuar con tu consulta?"
-                else:
-                    error_msg = "Désolé, il y a eu un problème de connexion temporaire. Pouvons-nous continuer avec votre demande ?"
+            # Silent error handling for performance
+            if self.detected_language == "es":
+                return "Disculpe, encontré un problema técnico. ¿Podemos continuar?"
             else:
-                if self.detected_language == "es":
-                    error_msg = f"Disculpe, encontré un problema técnico. ¿Podemos continuar? (Error: {error_str})"
-                else:
-                    error_msg = f"Désolé, j'ai rencontré un problème technique. Pouvons-nous continuer ? (Erreur: {error_str})"
-            
-            return error_msg
+                return "Désolé, j'ai rencontré un problème technique. Pouvons-nous continuer ?"
     
     def _process_tool_calls(self, result: Dict[str, Any]) -> None:
         """
@@ -266,14 +245,9 @@ class CCILangChainAgent:
             result: Agent execution result
         """
         if "intermediate_steps" not in result:
-            print(f"⚠️ No intermediate_steps in result.")
             return
             
-        print(f"🔍 Processing {len(result['intermediate_steps'])} tool calls.")
-        
-        for step in result["intermediate_steps"]:
-            action, observation = step
-            print(f"🔧 Tool used: {action.tool}")
+        # Silent processing for performance
     
     def get_status(self) -> Dict[str, Any]:
         """
@@ -363,7 +337,7 @@ class CCILangChainAgent:
                 self.prompt = self._build_dynamic_prompt()
                 self._rebuild_agent()
             except Exception as e:
-                print(f"⚠️ Erreur rechargement prompt : {e}")
+                pass  # Silent error for performance
         
         # Reload memory more robustly
         try:
@@ -380,22 +354,22 @@ class CCILangChainAgent:
                 # Clear current history
                 self.memory.chat_memory.clear()
                 
-                # Reload messages
-                for msg_data in memory_messages:
+                # Reload messages with BufferWindow limitation
+                # Only keep the last k*2 messages (k exchanges = k*2 messages)
+                max_messages = self.memory.k * 2
+                recent_messages = memory_messages[-max_messages:] if len(memory_messages) > max_messages else memory_messages
+                
+                # Silent loading for performance
+                
+                for msg_data in recent_messages:
                     if msg_data.get("type") == "HumanMessage":
                         self.memory.chat_memory.add_message(HumanMessage(content=msg_data["content"]))
                     elif msg_data.get("type") == "AIMessage":
                         self.memory.chat_memory.add_message(AIMessage(content=msg_data["content"]))
                         
         except Exception as e:
-            print(f"⚠️ Erreur rechargement mémoire : {e}")
-            # In case of error, at least keep the summary
-            try:
-                memory_summary = state.get("memory_summary", "")
-                if memory_summary:
-                    self.memory.moving_summary_buffer = memory_summary
-            except:
-                pass
+            # Silent error handling for performance
+            pass
     
     @classmethod
     def from_state(cls, state: Dict[str, Any], prompt_name: str = "prompt_fr") -> 'CCILangChainAgent':
@@ -470,7 +444,6 @@ class CCILangChainAgent:
             
             return True
         except Exception as e:
-            print(f"Erreur définition langue : {e}")
             return False
     
     def mark_questionnaire_completed(self) -> None:
@@ -479,7 +452,7 @@ class CCILangChainAgent:
         """
         self.questionnaire_completed = True
         self.agent_mode = "assistance"
-        print(f"✅ Questionnaire marqué comme terminé, transition vers mode assistance")
+        # Silent mode transition for performance
     
     def should_transition_to_assistance(self) -> bool:
         """
