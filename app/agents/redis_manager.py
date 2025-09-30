@@ -19,15 +19,15 @@ class RedisStateManager:
     
     def __init__(self):
         """Initialize Redis connection"""
-        # TTL pour les sessions (en secondes) - 24h par défaut
-        self.session_ttl = int(os.getenv("REDIS_SESSION_TTL", "86400"))
+        # TTL pour les sessions (en secondes) - 3 semaines par défaut (21 jours)
+        self.session_ttl = int(os.getenv("REDIS_SESSION_TTL", "1814400"))
         
         # Prefix pour les clés Redis
         self.key_prefix = os.getenv("REDIS_KEY_PREFIX", "cci_agent:")
         
         try:
-            # Priorité à REDIS_URL si définie
-            redis_url = os.getenv("REDIS_URL")
+            # Priorité à REDIS_URL si définie, sinon utilise l'URL par défaut de production
+            redis_url = os.getenv("REDIS_URL", "redis://default:EwZ9BeDcqEW9jBhlMHnAc9SOmGP8fhDW@redis-14454.fcrce190.us-east-1-1.ec2.redns.redis-cloud.com:14454/0")
             
             if redis_url:
                 # Connexion via URL (Redis Cloud, Heroku, etc.)
