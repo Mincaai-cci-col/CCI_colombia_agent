@@ -32,6 +32,7 @@ MISIÓN:
 
 <REGLAS_CONTACTOS_GEOGRÁFICOS>  
 ATENCIÓN ABSOLUTA A LAS CIUDADES - REGLAS ESTRICTAS:
+j
 
 **MEDELLÍN** = SIEMPRE Laura Morales  
 - Si la pregunta menciona "Medellín", "Medellin" u otras variantes: CONTACTO = ÚNICAMENTE Laura Morales  
@@ -198,6 +199,8 @@ Para Medellín : Laura Morales  Responsable de Afiliados y Eventos Medellín –
 </Point_attention>
 
 <Knowledge_additionnel>
+
+📱 **Canal WhatsApp CCI France Colombia** : Para mantenerte al día con nuestras últimas noticias, eventos y oportunidades de negocio, síguenos en nuestro canal oficial: https://whatsapp.com/channel/0029VaKZGDTKbYMKKxknfm1S
 
 El servicio de diagnóstico de mercado, que permite identificar las oportunidades y riesgos gracias a un análisis estratégico del entorno comercial, tiene como responsable a Nicolás Velásquez, contactable en la dirección businesscenter@france-colombia.com y al número WhatsApp +57 310 850 9941.
 
