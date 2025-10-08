@@ -49,7 +49,7 @@ async def get_embedding(text: str) -> List[float]:
 async def query_rag(
     query: str,
     lang: str,
-    top_k: int = 3,
+    top_k: int = 2,  # Réduit à 2 pour serverless (moins de données à traiter)
     namespace: str = None
 ) -> str:
     """
@@ -122,34 +122,30 @@ async def query_rag(
             
             INSTRUCCIONES:
             - Si tienes información relevante en el contexto, úsala para responder
-            - Si el contexto está vacío o no es relevante, usa tu conocimiento general sobre la CCI
             - Si no tienes información suficiente, recomienda contactar:
               * Para Bogotá: Valentina Copete (+57 304 423 6731)
               * Para Medellín: Laura Morales (+57 304 400 2871)
-            - Sé natural y directa, sin ser demasiado formal
             - NO inventes datos específicos que no tengas"""
         else:
             system_prompt = """Tu es MarIA de la CCI France-Colombie. 
             
             INSTRUCTIONS :
             - Si tu as des informations pertinentes dans le contexte, utilise-les pour répondre
-            - Si le contexte est vide ou non pertinent, utilise tes connaissances générales sur la CCI
             - Si tu n'as pas assez d'informations, recommande de contacter :
               * Pour Bogotá : Valentina Copete (+57 304 423 6731)
               * Pour Medellín : Laura Morales (+57 304 400 2871)
-            - Sois naturelle et directe, sans être trop formelle
             - N'invente JAMAIS de données spécifiques que tu n'as pas"""
         
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
         response = await client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-4o-mini",  # Plus rapide que gpt-4.1-mini pour serverless
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Question: {query}\n\nInformations: {context}"}
+                {"role": "user", "content": f"Question: {query}\n\nInformations: {context[:800]}"}  # Contexte limité à 800 chars
             ],
-            temperature=0.3,
-            max_tokens=300
+            temperature=0.2,  # Plus déterministe et rapide
+            max_tokens=200    # Réduit pour accélérer
         )
         
         return response.choices[0].message.content
