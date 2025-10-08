@@ -56,20 +56,20 @@ def get_colombia_current_date() -> str:
 @tool
 async def rag_search_tool(query: str) -> str:
     """
-    Recherche d'informations sur la CCI France-Colombie avec RAG (Retrieval Augmented Generation).
+    Recherche d'informations dans la base de connaissances avec RAG (Retrieval Augmented Generation).
     
     Utilise cette fonction pour répondre aux questions sur :
-    - Les services de la CCI
-    - L'histoire et mission de la CCI
+    - Les services disponibles
+    - L'histoire et mission
     - Les événements et activités
     - Les contacts et informations pratiques
-    - Tout ce qui concerne la CCI France-Colombie
+    - Toute information générale
     
     Args:
-        query: Question ou mot-clé à rechercher
+        query: Question ou mot-clé à rechercher (utilise des termes simples et directs)
         
     Returns:
-        Réponse informative basée sur la base de connaissances CCI
+        Réponse informative basée sur la base de connaissances
     """
     try:
         # Use global language (not ideal for API but functional for now)
