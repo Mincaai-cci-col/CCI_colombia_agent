@@ -105,55 +105,40 @@ async def query_rag(
         
         # Log the documents found in Pinecone (commented for performance)
         # print(f"🗂️  Pinecone Documents Found: {len(documents)} documents")
+        # print(f"🔍  Pinecone Results: {len(results.matches)} matches")
+        # for i, match in enumerate(results.matches[:3]):
+        #     print(f"   Match {i+1}: score={match.score:.4f}")
         # for i, doc in enumerate(documents[:3]):  # Show first 3 documents
         #     print(f"   Doc {i+1}: {doc[:150]}{'...' if len(doc) > 150 else ''}")
         # if len(documents) > 3:
         #     print(f"   ... and {len(documents) - 3} more documents")
         # print("   " + "-"*40)
         
-        if not documents:
-            if lang == "es":
-                return """No encontré información específica sobre este tema en nuestra base de conocimientos. 
-                
-Para obtener información detallada, te recomiendo contactar directamente:
-• Para Bogotá: Valentina Copete (+57 304 423 6731)
-• Para Medellín: Laura Morales (+57 304 400 2871)"""
-            else:
-                return """Je n'ai pas trouvé d'informations spécifiques sur ce sujet dans notre base de connaissances.
-                
-Pour obtenir des informations détaillées, je vous recommande de contacter directement :
-• Pour Bogotá : Valentina Copete (+57 304 423 6731)
-• Pour Medellín : Laura Morales (+57 304 400 2871)"""
-        
-        # Reformulate response with OpenAI
+        # Reformulate response with OpenAI (toujours, même si documents est vide)
         context = "\n\n".join(documents)
         
         if lang == "es":
             system_prompt = """Eres MarIA de la CCI Francia-Colombia. 
             
-            REGLAS CRÍTICAS ANTI-ALUCINACIÓN:
-            - Responde SOLO basándote en la información proporcionada
-            - Si la información no es clara o completa, di "No tengo información clara sobre esto"
-            - NO inventes datos, fechas, nombres o detalles específicos
-            - Si no puedes responder con certeza, recomienda contactar:
+            INSTRUCCIONES:
+            - Si tienes información relevante en el contexto, úsala para responder
+            - Si el contexto está vacío o no es relevante, usa tu conocimiento general sobre la CCI
+            - Si no tienes información suficiente, recomienda contactar:
               * Para Bogotá: Valentina Copete (+57 304 423 6731)
               * Para Medellín: Laura Morales (+57 304 400 2871)
-              * Para temas generales: ambos contactos
-            
-            Sé natural y directa, sin ser demasiado formal."""
+            - Sé natural y directa, sin ser demasiado formal
+            - NO inventes datos específicos que no tengas"""
         else:
             system_prompt = """Tu es MarIA de la CCI France-Colombie. 
             
-            RÈGLES CRITIQUES ANTI-HALLUCINATION :
-            - Réponds UNIQUEMENT en te basant sur les informations fournies
-            - Si l'information n'est pas claire ou complète, dis "Je n'ai pas d'information claire sur ce sujet"
-            - N'invente JAMAIS de données, dates, noms ou détails spécifiques
-            - Si tu ne peux pas répondre avec certitude, recommande de contacter :
+            INSTRUCTIONS :
+            - Si tu as des informations pertinentes dans le contexte, utilise-les pour répondre
+            - Si le contexte est vide ou non pertinent, utilise tes connaissances générales sur la CCI
+            - Si tu n'as pas assez d'informations, recommande de contacter :
               * Pour Bogotá : Valentina Copete (+57 304 423 6731)
               * Pour Medellín : Laura Morales (+57 304 400 2871)
-              * Pour questions générales : les deux contacts
-            
-            Sois naturelle et directe, sans être trop formelle."""
+            - Sois naturelle et directe, sans être trop formelle
+            - N'invente JAMAIS de données spécifiques que tu n'as pas"""
         
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         

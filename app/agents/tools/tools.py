@@ -58,15 +58,15 @@ async def rag_search_tool(query: str) -> str:
     """
     Recherche d'informations dans la base de connaissances avec RAG (Retrieval Augmented Generation).
     
-    Utilise cette fonction pour répondre aux questions sur :
-    - Les services disponibles
-    - L'histoire et mission
-    - Les événements et activités
-    - Les contacts et informations pratiques
-    - Toute information générale
+    IMPORTANT: Utilise UNIQUEMENT des mots-clés courts et simples, SANS ajouter "CCI France-Colombie".
+    
+    Exemples de bonnes requêtes:
+    - "espace membre" (pas "espace membre CCI France-Colombie")
+    - "newsletter" (pas "newsletter CCI France-Colombie") 
+    - "agenda B2B" (pas "agenda B2B CCI France-Colombie")
     
     Args:
-        query: Question ou mot-clé à rechercher (utilise des termes simples et directs)
+        query: Mots-clés simples et courts UNIQUEMENT (2-3 mots maximum)
         
     Returns:
         Réponse informative basée sur la base de connaissances
@@ -82,7 +82,7 @@ async def rag_search_tool(query: str) -> str:
         # Log the RAG result (commented for performance)
         # print(f"📚 RAG Result from Knowledge Base:")
         # print(f"   Query: {query}")
-        # print(f"   Response: {response[:200]}{'...' if len(response) > 200 else ''}")
+        # print(f"   Response: {response[:300]}{'...' if len(response) > 300 else ''}")
         # print("   " + "="*50)
         
         return response
