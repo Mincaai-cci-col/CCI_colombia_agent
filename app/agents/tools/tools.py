@@ -77,7 +77,7 @@ async def rag_search_tool(query: str) -> str:
         current_lang = get_current_language()
         # print(f"🔍 RAG Search Query: '{query}' (lang: {current_lang})")  # Commented for performance
         
-        response = await query_rag(query, current_lang)
+        response = await query_rag(query, current_lang, top_k=3)
         
         # Log the RAG result (commented for performance)
         # print(f"📚 RAG Result from Knowledge Base:")
