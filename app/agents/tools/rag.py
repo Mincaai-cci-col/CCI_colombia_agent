@@ -90,51 +90,24 @@ async def query_rag(
         # Execute search
         results = index.query(**search_params)
         
-        # Extract relevant documents
-        documents = []
+        # Extract only essential text content, very compact
+        context_parts = []
         for match in results.matches:
-            if match.metadata:
-                # Try different metadata fields for text content
-                text_content = (
-                    match.metadata.get('text') or 
-                    match.metadata.get('content') or 
-                    match.metadata.get('document') or 
-                    str(match.metadata)
-                )
-                documents.append(text_content)
+            if match.metadata and match.score > 0.7:  # Only high-quality matches
+                # Get text content only
+                text = (match.metadata.get('text') or 
+                       match.metadata.get('content') or 
+                       match.metadata.get('document', ''))
+                if text:
+                    # Keep only first 200 chars per document
+                    context_parts.append(text[:200])
         
-        # Log the documents found in Pinecone (commented for performance)
-        # print(f"🗂️  Pinecone Documents Found: {len(documents)} documents")
-        # print(f"🔍  Pinecone Results: {len(results.matches)} matches")
-        # for i, match in enumerate(results.matches[:3]):
-        #     print(f"   Match {i+1}: score={match.score:.4f}")
-        # for i, doc in enumerate(documents[:3]):  # Show first 3 documents
-        #     print(f"   Doc {i+1}: {doc[:150]}{'...' if len(doc) > 150 else ''}")
-        # if len(documents) > 3:
-        #     print(f"   ... and {len(documents) - 3} more documents")
-        # print("   " + "-"*40)
-        
-        # Reformulate response with OpenAI (toujours, même si documents est vide)
-        context = "\n\n".join(documents)
+        context = " | ".join(context_parts)[:400]  # Max 400 chars total
         
         if lang == "es":
-            system_prompt = """Eres MarIA de la CCI Francia-Colombia. 
-            
-            INSTRUCCIONES:
-            - Si tienes información relevante en el contexto, úsala para responder
-            - Si no tienes información suficiente, recomienda contactar:
-              * Para Bogotá: Valentina Copete (+57 304 423 6731)
-              * Para Medellín: Laura Morales (+57 304 400 2871)
-            - NO inventes datos específicos que no tengas"""
+            system_prompt = "Eres MarIA de CCI Francia-Colombia. Usa el contexto para responder. Si no hay info suficiente: Bogotá: Valentina (+57 304 423 6731), Medellín: Laura (+57 304 400 2871)"
         else:
-            system_prompt = """Tu es MarIA de la CCI France-Colombie. 
-            
-            INSTRUCTIONS :
-            - Si tu as des informations pertinentes dans le contexte, utilise-les pour répondre
-            - Si tu n'as pas assez d'informations, recommande de contacter :
-              * Pour Bogotá : Valentina Copete (+57 304 423 6731)
-              * Pour Medellín : Laura Morales (+57 304 400 2871)
-            - N'invente JAMAIS de données spécifiques que tu n'as pas"""
+            system_prompt = "Tu es MarIA de CCI France-Colombie. Utilise le contexte pour répondre. Si pas assez d'info: Bogotá: Valentina (+57 304 423 6731), Medellín: Laura (+57 304 400 2871)"
         
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
@@ -142,10 +115,10 @@ async def query_rag(
             model="gpt-4o-mini",  # Plus rapide que gpt-4.1-mini pour serverless
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Question: {query}\n\nInformations: {context[:800]}"}  # Contexte limité à 800 chars
+                {"role": "user", "content": f"{query}\n\nInfo: {context}"}  # Format ultra-compact
             ],
-            temperature=0.2,  # Plus déterministe et rapide
-            max_tokens=200    # Réduit pour accélérer
+            temperature=0.1,  # Encore plus déterministe
+            max_tokens=200    # Réduit encore plus
         )
         
         return response.choices[0].message.content
